@@ -188,6 +188,7 @@ func changePush(c *gin.Context) {
 			return
 		}
 		file.WriteString(string(jsonData))
+		file.Close()
 	}
 	fmt.Printf("Change message received at %s\n", time.Now().Format(Layout))
 
@@ -210,6 +211,7 @@ func subPush(c *gin.Context) {
 			return
 		}
 		file.WriteString(string(jsonData))
+		file.Close()
 	}
 	fmt.Printf("Subcription message received at %s\n", time.Now().Format(Layout))
 

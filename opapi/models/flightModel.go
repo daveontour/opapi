@@ -31,12 +31,12 @@ type FlightId struct {
 }
 
 func (d *FlightId) WriteJSON(fwb *bufio.Writer) error {
-	fwb.WriteString("{")
+	fwb.WriteString("\"FlightId\":{")
 	fwb.WriteString("\"FlightKind\":\"" + d.FlightKind + "\",")
 	fwb.WriteString("\"FlightNumber\":\"" + d.FlightNumber + "\",")
-	fwb.WriteString("\"ScheduledDate\":\"" + string(d.ScheduledDate) + "\",")
+	fwb.WriteString("\"ScheduledDate\":\"" + string(d.ScheduledDate) + "\"")
 	if d.AirportCode != nil {
-		fwb.WriteString("\"AirportCode\":{")
+		fwb.WriteString(",\"AirportCode\":{")
 		for idx, apt := range d.AirportCode {
 			if idx > 0 {
 				fwb.WriteString(",")
@@ -77,9 +77,29 @@ type LinkedFlight struct {
 func (d *LinkedFlight) WriteJSON(fwb *bufio.Writer) error {
 
 	fwb.WriteString("{")
-	fwb.WriteString("\"FlightId\":")
-	d.FlightId.WriteJSON(fwb)
-	fwb.WriteString(",")
+
+	fwb.WriteString("\"FlightId\":{")
+	fwb.WriteString("\"FlightKind\":\"" + d.FlightId.FlightKind + "\",")
+	fwb.WriteString("\"FlightNumber\":\"" + d.FlightId.FlightNumber + "\",")
+	fwb.WriteString("\"ScheduledDate\":\"" + string(d.FlightId.ScheduledDate) + "\",")
+	fwb.WriteString("\"AirportCode\":{")
+	for idx, apt := range d.FlightId.AirportCode {
+		if idx > 0 {
+			fwb.WriteString(",")
+		}
+		fwb.WriteString("\"" + apt.CodeContext + "\":\"" + apt.Text + "\"")
+	}
+	fwb.WriteString("},")
+
+	fwb.WriteString("\"AirlineDesignator\":{")
+	for idx, al := range d.FlightId.AirlineDesignator {
+		if idx > 0 {
+			fwb.WriteString(",")
+		}
+		fwb.WriteString("\"" + al.CodeContext + "\":\"" + al.Text + "\"")
+	}
+	fwb.WriteString("}")
+	fwb.WriteString("},")
 
 	fwb.WriteString("\"Values\":")
 	MarshalValuesArrayJSON(d.Value, fwb)
@@ -113,7 +133,7 @@ func (tid *AircraftTypeId) WriteJSON(fwb *bufio.Writer) error {
 		}
 		fwb.WriteString("}")
 	}
-	fwb.WriteString("},")
+	fwb.WriteString("}")
 	return nil
 }
 
@@ -128,7 +148,9 @@ func (t *AircraftType) WriteJSON(fwb *bufio.Writer) error {
 
 	fwb.WriteString("\"AircraftTypeId\":")
 	t.AircraftTypeId.WriteJSON(fwb)
-	fwb.WriteString(",")
+	if len(t.Value) > 0 {
+		fwb.WriteString(",")
+	}
 
 	fwb.WriteString("\"Values\":")
 	MarshalValuesArrayJSON(t.Value, fwb)
@@ -423,17 +445,19 @@ func MarshalCustomFieldArrayJSON(vs []Value, fwb *bufio.Writer, userProfile *Use
 
 	fwb.WriteString("{")
 
-	set := false
-	for _, f := range vs {
-		// Do the pruning of custom fields to only the allowed set for the user
-		if !contains(userProfile.AllowedCustomFields, f.PropertyName) && !contains(userProfile.AllowedCustomFields, "*") {
-			continue
+	if userProfile != nil {
+		set := false
+		for _, f := range vs {
+			// Do the pruning of custom fields to only the allowed set for the user
+			if !contains(userProfile.AllowedCustomFields, f.PropertyName) && !contains(userProfile.AllowedCustomFields, "*") {
+				continue
+			}
+			if set {
+				fwb.WriteString(",")
+			}
+			set = true
+			fwb.WriteString("\"" + f.PropertyName + "\":\"" + strings.Replace(f.Text, "\n", "", -1) + "\"")
 		}
-		if set {
-			fwb.WriteString(",")
-		}
-		set = true
-		fwb.WriteString("\"" + f.PropertyName + "\":\"" + strings.Replace(f.Text, "\n", "", -1) + "\"")
 	}
 
 	fwb.WriteString("}")
@@ -446,10 +470,9 @@ func (d *FlightState) WriteJSON(fwb *bufio.Writer, userProfile *UserProfile) err
 
 	fwb.WriteString("\"LinkedFlight\":")
 	d.LinkedFlight.WriteJSON(fwb)
-
 	fwb.WriteString(",")
 
-	fwb.WriteString("\"AircraftType\"")
+	fwb.WriteString("\"AircraftType\":")
 	d.AircraftType.WriteJSON(fwb)
 	fwb.WriteString(",")
 
@@ -485,7 +508,7 @@ func (d *FlightState) WriteJSON(fwb *bufio.Writer, userProfile *UserProfile) err
 	d.ChuteSlots.WriteJSON(fwb)
 	//sb.WriteString(",")
 
-	fwb.WriteString("}")
+	//fwb.WriteString("}")
 
 	fwb.Flush()
 
@@ -654,7 +677,9 @@ func (d *Flight) WriteJSON(fwb *bufio.Writer, userProfile *UserProfile) error {
 
 	fwb.WriteString("{")
 
-	fwb.WriteString(`"FlightId":`)
+	if d.Action != "" {
+		fwb.WriteString(`"Action":"` + d.Action + `",`)
+	}
 	d.FlightId.WriteJSON(fwb)
 	fwb.WriteString(",")
 
@@ -663,7 +688,7 @@ func (d *Flight) WriteJSON(fwb *bufio.Writer, userProfile *UserProfile) error {
 
 	// Using the built in JSON serialiser for the Changes because I'm too lazy to write a custom serilaizer
 	flightChanges, _ := json.Marshal(d.FlightChanges)
-	fwb.WriteString(",\n\"Changes\":")
+	fwb.WriteString("},\n\"Changes\":")
 	fwb.Write(flightChanges)
 	fwb.WriteString(",\n\"ValueChanges\":[")
 	f := false

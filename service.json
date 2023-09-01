@@ -5,6 +5,7 @@
     "ServiceIPport": "127.0.0.1:8081",
     "ScheduleUpdateJob": "02:00:00",
     "ScheduleUpdateJobIntervalInHours": 1,
+    "ScheduleUpdateJobIntervalInMinutes": -1,
     "DebugService": true,
     "TraceService": false,
     "UseHTTPS": false,

@@ -1,13 +1,4 @@
 DESTDIR := C:\Users\dave_\Desktop\opapi
-FILES := \
-    service.json \
-    airports.json \
-    users.json \
-	test.json \
-	arrival.template.xml \
-	departure.template.xml \
-	help.html \
-	adminhelp.htm 
 
 build:
 	go build -o $(DESTDIR)\opapi.exe .\opapi\main
@@ -24,5 +15,5 @@ build:
 clean:
 	del $(DESTDIR)\opapi.exe
 	del $(DESTDIR)\opapiseeder.exe
-	del $(DESTDIR)\webhookclient.ex
+	del $(DESTDIR)\webhookclient.exe
 

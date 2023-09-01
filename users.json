@@ -25,7 +25,7 @@
                 {
                     "Enabled": true,
                     "EnableInDemoMode":true,
-                    "Airport": "APT",
+                    "Airport": "AUH",
                     "DestinationURL": "http://localhost:8082/changeEndpoint",
                     "HeaderParameters": [],
                     "CheckInChange": true,
@@ -50,7 +50,7 @@
                     "Enabled": true,
                     "EnableInDemoMode":true,
                     "PushOnStartUp":  true,
-                    "Airport": "APT",
+                    "Airport": "AUH",
                     "DestinationURL": "http://localhost:8082/subscriptionEndPoint",
                     "HeaderParameters": "",
                     "SubscriptionType": "Flight",

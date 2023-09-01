@@ -10,6 +10,8 @@ updates and the refresh of the repository is scheduled
 
 import (
 	"bytes"
+	"strconv"
+
 	//	"database/sql"
 	"encoding/xml"
 	"fmt"
@@ -357,7 +359,17 @@ func scheduleUpdates(airportCode string) {
 	globals.RefreshSchedulerMap[airportCode] = s
 
 	// Schedule the regular update of the repositoiry
-	s.Every(globals.ConfigViper.GetString("ScheduleUpdateJobIntervalInHours")).Hours().StartAt(startTime).Do(func() { incrementalUpdateRepository(airportCode) })
+	m := globals.ConfigViper.GetString("ScheduleUpdateJobIntervalInHours")
+	n, err := strconv.Atoi(m)
+	if err != nil {
+		s.Every(n).Hours().StartAt(startTime).Do(func() { incrementalUpdateRepository(airportCode) })
+	}
+
+	m = globals.ConfigViper.GetString("ScheduleUpdateJobIntervalInMinutes")
+	n, err = strconv.Atoi(m)
+	if n != -1 && err == nil {
+		s.Every(n).Minutes().Do(func() { incrementalUpdateRepository(airportCode) })
+	}
 
 	globals.Logger.Info(fmt.Sprintf("Regular updates of the repository have been scheduled at %s for every %v hours", startTimeStr, globals.ConfigViper.GetString("ScheduleUpdateJobIntervalInHours")))
 
@@ -416,6 +428,7 @@ func updateRepository(airportCode string) {
 }
 func incrementalUpdateRepository(airportCode string) {
 
+	fmt.Println("Incremental Load")
 	defer globals.ExeTime(fmt.Sprintf("Updated Repository for %s", airportCode))()
 	// Update the resource map. New entries will be added, existing entries will be left untouched
 	globals.Logger.Info(fmt.Sprintf("Scheduled Maintenance of Repository: %s. Incremental Updating Resource Map - Starting", airportCode))

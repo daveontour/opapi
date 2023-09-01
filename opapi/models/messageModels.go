@@ -88,8 +88,9 @@ type FixedResource struct {
 }
 
 type ChangePushJob struct {
-	Sub    UserChangeSubscription
-	Flight *Flight
+	Sub         UserChangeSubscription
+	Flight      *Flight
+	UserProfile *UserProfile
 }
 type SchedulePushJob struct {
 	Sub         UserPushSubscription
@@ -260,6 +261,7 @@ type UserChangeSubscription struct {
 	All                      bool
 	ParameterChange          []string
 	TrustBadCertificates     bool
+	UserKey                  string
 }
 
 type ResourceLinkedList struct {

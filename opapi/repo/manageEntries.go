@@ -100,11 +100,12 @@ func deleteFlightEntry(message string, notify bool) {
 	airportCode := flight.GetIATAAirport()
 	repo := GetRepo(airportCode)
 
+	flightCopy := flight
 	(*repo).FlightLinkedList.RemoveNode(flight)
 	(*repo).RemoveFlightAllocation(flight.GetFlightID())
 
 	if notify {
-		globals.FlightDeletedChannel <- flight
+		globals.FlightDeletedChannel <- flightCopy
 	}
 }
 func getFlights(airportCode string, values ...int) []byte {
