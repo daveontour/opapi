@@ -1,0 +1,247 @@
+{
+    "Users": [
+        {
+            "Enabled": true,
+            "UserName": "Default User",
+            "Key": "default",
+            "AllowedAirports": [
+                "AUH", "APT"
+            ],
+            "AllowedAirlines": [
+                "WY",
+                "QF",
+                "*"
+            ],
+            "AllowedCustomFields": [
+                "FlightUniqueID",
+                "Il--_DisembarkingFirstPad",
+                "Sh--_GroundHandler",
+                "Il--_TotalMalePax",
+                "S---_Terminal",
+                "S--G_DepartureStandType",
+                "*"
+            ],
+            "UserChangeSubscriptions": [
+                {
+                    "Enabled": true,
+                    "EnableInDemoMode":true,
+                    "Airport": "APT",
+                    "DestinationURL": "http://localhost:8082/changeEndpoint",
+                    "HeaderParameters": [],
+                    "CheckInChange": true,
+                    "GateChange": true,
+                    "StandChange": true,
+                    "CarouselChange": true,
+                    "ChuteChange": true,
+                    "AircraftTypeOrRegoChange": true,
+                    "EventChange": true,
+                    "CustomFieldChange": [
+                        "Stand"
+                    ],
+                    "CreateFlight": true,
+                    "DeleteFlight": true,
+                    "UpdateFlight": true,
+                    "All":true,
+                    "TrustBadCertificates":true
+                }
+            ],
+            "UserPushSubscriptions": [
+                {
+                    "Enabled": true,
+                    "EnableInDemoMode":true,
+                    "PushOnStartUp":  true,
+                    "Airport": "APT",
+                    "DestinationURL": "http://localhost:8082/subscriptionEndPoint",
+                    "HeaderParameters": "",
+                    "SubscriptionType": "Flight",
+                    "Time": "14:00:00",
+                    "ReptitionHours": 1,
+                    "ReptitionMinutes": 1,
+                    "Airline": "",
+                    "From": -24,
+                    "To": 24,
+                    "QueryableCustomFields": [],
+                    "ResourceType": "",
+                    "ResourceID": "",
+                    "Route": "",
+                    "Direction": "",
+                    "TrustBadCertificates":true,
+                    "All":true
+
+                }
+            ]
+        },
+        {
+            "Enabled": false,
+            "UserName": "Default User2",
+            "Key": "default",
+            "AllowedAirports": [
+                "AUH", "APT"
+            ],
+            "AllowedAirlines": [
+                "WY",
+                "QF",
+                "*"
+            ],
+            "AllowedCustomFields": [
+                "FlightUniqueID",
+                "Il--_DisembarkingFirstPad",
+                "Sh--_GroundHandler",
+                "Il--_TotalMalePax",
+                "S---_Terminal",
+                "*"
+            ],
+            "UserChangeSubscriptions": [
+                {
+                    "Enabled": false,
+                    "EnableInDemoMode":true,
+                    "Airport": "APT",
+                    "DestinationURL": "http://localhost:8082/changeEndpoint",
+                    "HeaderParameters": [],
+                    "CheckInChange": true,
+                    "GateChange": true,
+                    "StandChange": true,
+                    "CarouselChange": true,
+                    "ChuteChange": true,
+                    "AircraftTypeOrRegoChange": true,
+                    "EventChange": true,
+                    "CustomFieldChange": [
+                        "Stand"
+                    ],
+                    "CreateFlight": true,
+                    "DeleteFlight": true,
+                    "UpdateFlight": true,
+                    "All":true,
+                    "TrustBadCertificates":true
+                }
+            ],
+            "UserPushSubscriptions": [
+                {
+                    "Enabled":  false,
+                    "EnableInDemoMode":true,
+                    "PushOnStartUp":  true,
+                    "Airport": "APT",
+                    "DestinationURL": "http://localhost:8082/subscriptionEndPoint",
+                    "HeaderParameters": "",
+                    "SubscriptionType": "Flight",
+                    "Time": "14:00:00",
+                    "ReptitionHours": 1,
+                    "ReptitionMinutes": 1,
+                    "Airline": "",
+                    "From": -24,
+                    "To": 24,
+                    "QueryableCustomFields": [],
+                    "ResourceType": "",
+                    "ResourceID": "",
+                    "Route": "",
+                    "Direction": "",
+                    "TrustBadCertificates":true
+                }
+            ]
+        },
+        {
+            "Enabled": true,
+            "UserName": "Default User3",
+            "Key": "default",
+            "AllowedAirports": [
+                "AUH", "APT"
+            ],
+            "AllowedAirlines": [
+                "WY",
+                "QF",
+                "*"
+            ],
+            "AllowedCustomFields": [
+                "FlightUniqueID",
+                "Il--_DisembarkingFirstPad",
+                "Sh--_GroundHandler",
+                "Il--_TotalMalePax",
+                "S---_Terminal",
+                "*"
+            ],
+            "UserChangeSubscriptions": [
+                {
+                    "Enabled": false,
+                    "EnableInDemoMode":true,
+                    "Airport": "APT",
+                    "DestinationURL": "http://localhost:8082/changeEndpoint",
+                    "HeaderParameters": [],
+                    "CheckInChange": true,
+                    "GateChange": true,
+                    "StandChange": true,
+                    "CarouselChange": true,
+                    "ChuteChange": true,
+                    "AircraftTypeOrRegoChange": true,
+                    "EventChange": true,
+                    "CustomFieldChange": [
+                        "Stand"
+                    ],
+                    "CreateFlight": true,
+                    "DeleteFlight": true,
+                    "UpdateFlight": true,
+                    "All":true,
+                    "TrustBadCertificates":true
+                }
+            ],
+            "UserPushSubscriptions": [
+                {
+                    "Enabled":  false,
+                    "EnableInDemoMode":true,
+                    "PushOnStartUp":  true,
+                    "Airport": "APT",
+                    "DestinationURL": "http://localhost:8082/subscriptionEndPoint",
+                    "HeaderParameters": "",
+                    "SubscriptionType": "Flight",
+                    "Time": "14:00:00",
+                    "ReptitionHours": 1,
+                    "ReptitionMinutes": 1,
+                    "Airline": "",
+                    "From": -24,
+                    "To": 24,
+                    "QueryableCustomFields": [],
+                    "ResourceType": "",
+                    "ResourceID": "",
+                    "Route": "",
+                    "Direction": "",
+                    "TrustBadCertificates":true
+                }
+            ]
+        },
+        {
+            "Enabled":true,
+            "UserName": "AUH",
+            "Key": "0ab7d73d-e93a-480b-ba8c-a35943161cb0",
+            "AllowedAirports": [
+                "AUH"
+            ],
+            "AllowedAirlines": [
+                "*"
+            ],
+            "AllowedCustomFields": [
+                "*"
+            ]
+        },
+        {
+            "UserName": "Ground Handler1",
+            "Enabled":true,
+            "Key": "12345678",
+            "AllowedAirports": [
+                "BAH"
+            ],
+            "AllowedAirlines": [
+                "QF",
+                "BA"
+            ],
+            "AllowedCustomFields": [
+                "FlightUniqueID",
+                "Sh--_GroundHandler"
+            ],
+            "DefaultQueryableCustomFields": [
+                {
+                    "Parameter": "Sh--_GroundHandler",
+                    "Value": "EAS"
+                }
+            ]
+        }
+    ]
+}

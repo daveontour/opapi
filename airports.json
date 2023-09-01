@@ -1,0 +1,18 @@
+{
+    "Repositories": [
+        {
+            "AMSAirport": "AUH",
+            "AMSToken": "0ab7d73d-e93a-480b-ba8c-a35943161cb0",
+            "AMSSOAPServiceURL": "http://localhost/SITAAMSIntegrationService/v2/SITAAMSIntegrationService",
+            "AMSRestServiceURL": "http://localhost/api/v1/",
+            "FlightSDOWindowMinimumInDaysFromNow": -3,
+            "FlightSDOWindowMaximumInDaysFromNow": 20,
+            "ListenerType":"MSMQ",
+            "NotificationListenerQueue": ".\\private$\\tow_tracker",
+            "LoadFlightChunkSizeInDays": 4,
+            "RabbitMQConnectionString": "amqp://amsauh:amsauh@localhost:5672/amsauh",
+            "RabbitMQExchange": "Test",
+            "RabbitMQTopic": "AMSX.Notify"
+        }
+    ]
+}
