@@ -390,6 +390,43 @@ func (ss *GateSlots) WriteJSON(fwb *bufio.Writer) error {
 	return nil
 }
 
+func (ss *GateSlots) MarshalJSON() ([]byte, error) {
+
+	fwb := strings.Builder{}
+	fwb.WriteString("{")
+	for idx2, s := range ss.GateSlot {
+
+		if idx2 > 0 {
+			fwb.WriteString(",")
+		}
+		fwb.WriteString("{")
+		for idx3, v := range s.Value {
+			if idx3 > 0 {
+				fwb.WriteString(",")
+			}
+			fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+		}
+		for _, v := range s.Gate.Value {
+			fwb.WriteString(",")
+			fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+		}
+
+		for _, v := range s.Gate.Area.Value {
+			fwb.WriteString(",")
+			fwb.WriteString("\"Area" + v.PropertyName + "\":\"" + v.Text + "\"")
+		}
+
+		fwb.WriteString("}")
+
+	}
+
+	fwb.WriteString("]")
+
+	var sendText = fwb.String()
+
+	return []byte(sendText), nil
+}
+
 func (ss *CheckInSlots) WriteJSON(fwb *bufio.Writer) error {
 
 	fwb.WriteString("[")
@@ -422,6 +459,31 @@ func (ss *CheckInSlots) WriteJSON(fwb *bufio.Writer) error {
 	return nil
 }
 
+func (s *CheckInSlot) MarshalJSON() ([]byte, error) {
+
+	fwb := strings.Builder{}
+	fwb.WriteString("{")
+
+	for idx3, v := range s.Value {
+		if idx3 > 0 {
+			fwb.WriteString(",")
+		}
+		fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+	}
+	for _, v := range s.CheckIn.Value {
+		fwb.WriteString(",")
+		fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+	}
+	for _, v := range s.CheckIn.Area.Value {
+		fwb.WriteString(",")
+		fwb.WriteString("\"Area" + v.PropertyName + "\":\"" + v.Text + "\"")
+	}
+	fwb.WriteString("}")
+
+	var sendText = fwb.String()
+
+	return []byte(sendText), nil
+}
 func (ss *ChuteSlots) WriteJSON(fwb *bufio.Writer) error {
 
 	fwb.WriteString("[")
@@ -592,65 +654,240 @@ type Change struct {
 
 type GateSlotsChange struct {
 	OldValue struct {
-		GateSlot struct {
-			Value []PropertyValuePair `xml:"Value"`
+		GateSlot []struct {
+			Value []struct {
+				Text         string `xml:",chardata"`
+				PropertyName string `xml:"propertyName,attr"`
+			} `xml:"Value"`
+			Gate struct {
+				Value []struct {
+					Text         string `xml:",chardata"`
+					PropertyName string `xml:"propertyName,attr"`
+				} `xml:"Value"`
+				Area struct {
+					Value []struct {
+						Text         string `xml:",chardata"`
+						PropertyName string `xml:"propertyName,attr"`
+					} `xml:"Value"`
+				} `xml:"Area"`
+			} `xml:"Gate"`
 		} `xml:"GateSlot"`
 	} `xml:"OldValue"`
 	NewValue struct {
-		GateSlot struct {
-			Value []PropertyValuePair `xml:"Value"`
+		GateSlot []struct {
+			Value []struct {
+				Text         string `xml:",chardata"`
+				PropertyName string `xml:"propertyName,attr"`
+			} `xml:"Value"`
+			Gate struct {
+				Value []struct {
+					Text         string `xml:",chardata"`
+					PropertyName string `xml:"propertyName,attr"`
+				} `xml:"Value"`
+				Area struct {
+					Value []struct {
+						Text         string `xml:",chardata"`
+						PropertyName string `xml:"propertyName,attr"`
+					} `xml:"Value"`
+				} `xml:"Area"`
+			} `xml:"Gate"`
 		} `xml:"GateSlot"`
 	} `xml:"NewValue"`
 }
-type StandSlotChange struct {
+
+func (sc *GateSlotsChange) MarshalJSON() ([]byte, error) {
+
+	fwb := strings.Builder{}
+
+	fwb.WriteString("{")
+	fwb.WriteString("\"OldValue\":[")
+
+	for idx, s := range sc.OldValue.GateSlot {
+		if idx > 0 {
+			fwb.WriteString(",")
+		}
+		fwb.WriteString("{")
+		for idx3, v := range s.Value {
+			if idx3 > 0 {
+				fwb.WriteString(",")
+			}
+			fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+		}
+		for _, v := range s.Gate.Value {
+			fwb.WriteString(",")
+			fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+		}
+
+		for _, v := range s.Gate.Area.Value {
+			fwb.WriteString(",")
+			fwb.WriteString("\"Area" + v.PropertyName + "\":\"" + v.Text + "\"")
+		}
+		fwb.WriteString("}")
+	}
+	fwb.WriteString("],")
+
+	fwb.WriteString("\"NewValue\":[")
+
+	for idx, s := range sc.NewValue.GateSlot {
+		if idx > 0 {
+			fwb.WriteString(",")
+		}
+		fwb.WriteString("{")
+		for idx3, v := range s.Value {
+			if idx3 > 0 {
+				fwb.WriteString(",")
+			}
+			fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+		}
+		for _, v := range s.Gate.Value {
+			fwb.WriteString(",")
+			fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+		}
+
+		for _, v := range s.Gate.Area.Value {
+			fwb.WriteString(",")
+			fwb.WriteString("\"Area" + v.PropertyName + "\":\"" + v.Text + "\"")
+		}
+		fwb.WriteString("}")
+	}
+	fwb.WriteString("]")
+
+	fwb.WriteString("}")
+	var sendText = fwb.String()
+
+	return []byte(sendText), nil
+
+}
+
+type StandSlotsChange struct {
 	OldValue struct {
-		StandSlot struct {
-			Value []PropertyValuePair `xml:"Value"`
+		StandSlot []struct {
+			Value []struct {
+				Text         string `xml:",chardata"`
+				PropertyName string `xml:"propertyName,attr"`
+			} `xml:"Value"`
+			Stand struct {
+				Value []struct {
+					Text         string `xml:",chardata"`
+					PropertyName string `xml:"propertyName,attr"`
+				} `xml:"Value"`
+				Area struct {
+					Value []struct {
+						Text         string `xml:",chardata"`
+						PropertyName string `xml:"propertyName,attr"`
+					} `xml:"Value"`
+				} `xml:"Area"`
+			} `xml:"Stand"`
 		} `xml:"StandSlot"`
 	} `xml:"OldValue"`
 	NewValue struct {
-		StandSlot struct {
-			Value []PropertyValuePair `xml:"Value"`
+		StandSlot []struct {
+			Value []struct {
+				Text         string `xml:",chardata"`
+				PropertyName string `xml:"propertyName,attr"`
+			} `xml:"Value"`
+			Stand struct {
+				Value []struct {
+					Text         string `xml:",chardata"`
+					PropertyName string `xml:"propertyName,attr"`
+				} `xml:"Value"`
+				Area struct {
+					Value []struct {
+						Text         string `xml:",chardata"`
+						PropertyName string `xml:"propertyName,attr"`
+					} `xml:"Value"`
+				} `xml:"Area"`
+			} `xml:"Stand"`
 		} `xml:"StandSlot"`
 	} `xml:"NewValue"`
 }
-type CheckInSlotsChange struct {
-	OldValue struct {
-		CheckInSlot []struct {
-			Value   []PropertyValuePair `xml:"Value"`
-			CheckIn struct {
-				Value []PropertyValuePair `xml:"Value"`
-				Area  struct {
-					Value PropertyValuePair `xml:"Value"`
-				} `xml:"Area"`
-			} `xml:"CheckIn"`
-		} `xml:"CheckInSlot"`
-	} `xml:"OldValue"`
-	NewValue struct {
-		CheckInSlot []struct {
-			Value   []PropertyValuePair `xml:"Value"`
-			CheckIn struct {
-				Value []PropertyValuePair `xml:"Value"`
-				Area  struct {
-					Value PropertyValuePair `xml:"Value"`
-				} `xml:"Area"`
-			} `xml:"CheckIn"`
-		} `xml:"CheckInSlot"`
-	} `xml:"NewValue"`
+
+func (sc *StandSlotsChange) MarshalJSON() ([]byte, error) {
+
+	fwb := strings.Builder{}
+
+	fwb.WriteString("{")
+	fwb.WriteString("\"OldValue\":[")
+
+	for idx, s := range sc.OldValue.StandSlot {
+		if idx > 0 {
+			fwb.WriteString(",")
+		}
+		fwb.WriteString("{")
+		for idx3, v := range s.Value {
+			if idx3 > 0 {
+				fwb.WriteString(",")
+			}
+			fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+		}
+		for _, v := range s.Stand.Value {
+			fwb.WriteString(",")
+			fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+		}
+
+		for _, v := range s.Stand.Area.Value {
+			fwb.WriteString(",")
+			fwb.WriteString("\"Area" + v.PropertyName + "\":\"" + v.Text + "\"")
+		}
+		fwb.WriteString("}")
+	}
+	fwb.WriteString("],")
+
+	fwb.WriteString("\"NewValue\":[")
+
+	for idx, s := range sc.NewValue.StandSlot {
+		if idx > 0 {
+			fwb.WriteString(",")
+		}
+		fwb.WriteString("{")
+		for idx3, v := range s.Value {
+			if idx3 > 0 {
+				fwb.WriteString(",")
+			}
+			fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+		}
+		for _, v := range s.Stand.Value {
+			fwb.WriteString(",")
+			fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+		}
+
+		for _, v := range s.Stand.Area.Value {
+			fwb.WriteString(",")
+			fwb.WriteString("\"Area" + v.PropertyName + "\":\"" + v.Text + "\"")
+		}
+		fwb.WriteString("}")
+	}
+	fwb.WriteString("]")
+
+	fwb.WriteString("}")
+	var sendText = fwb.String()
+
+	return []byte(sendText), nil
+
 }
+
 type CarouselSlotsChange struct {
 	OldValue struct {
-		CarouselSlot struct {
-			Value []PropertyValuePair `xml:"Value"`
-		} `xml:"CarouselSlot"`
-	} `xml:"OldValue"`
-	NewValue struct {
-		CarouselSlot struct {
+		CarouselSlot []struct {
 			Value    []PropertyValuePair `xml:"Value"`
 			Carousel struct {
 				Value []PropertyValuePair `xml:"Value"`
 				Area  struct {
-					Value struct {
+					Value []struct {
+						Text         string `xml:",chardata"`
+						PropertyName string `xml:"propertyName,attr"`
+					} `xml:"Value"`
+				} `xml:"Area"`
+			} `xml:"Carousel"`
+		} `xml:"CarouselSlot"`
+	} `xml:"OldValue"`
+	NewValue struct {
+		CarouselSlot []struct {
+			Value    []PropertyValuePair `xml:"Value"`
+			Carousel struct {
+				Value []PropertyValuePair `xml:"Value"`
+				Area  struct {
+					Value []struct {
 						Text         string `xml:",chardata"`
 						PropertyName string `xml:"propertyName,attr"`
 					} `xml:"Value"`
@@ -659,13 +896,81 @@ type CarouselSlotsChange struct {
 		} `xml:"CarouselSlot"`
 	} `xml:"NewValue"`
 }
+
+func (sc *CarouselSlotsChange) MarshalJSON() ([]byte, error) {
+
+	fwb := strings.Builder{}
+
+	fwb.WriteString("{")
+	fwb.WriteString("\"OldValue\":[")
+
+	for idx, s := range sc.OldValue.CarouselSlot {
+		if idx > 0 {
+			fwb.WriteString(",")
+		}
+		fwb.WriteString("{")
+		for idx3, v := range s.Value {
+			if idx3 > 0 {
+				fwb.WriteString(",")
+			}
+			fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+		}
+		for _, v := range s.Carousel.Value {
+			fwb.WriteString(",")
+			fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+		}
+
+		for _, v := range s.Carousel.Area.Value {
+			fwb.WriteString(",")
+			fwb.WriteString("\"Area" + v.PropertyName + "\":\"" + v.Text + "\"")
+		}
+		fwb.WriteString("}")
+	}
+	fwb.WriteString("],")
+
+	fwb.WriteString("\"NewValue\":[")
+
+	for idx, s := range sc.NewValue.CarouselSlot {
+		if idx > 0 {
+			fwb.WriteString(",")
+		}
+		fwb.WriteString("{")
+		for idx3, v := range s.Value {
+			if idx3 > 0 {
+				fwb.WriteString(",")
+			}
+			fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+		}
+		for _, v := range s.Carousel.Value {
+			fwb.WriteString(",")
+			fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+		}
+
+		for _, v := range s.Carousel.Area.Value {
+			fwb.WriteString(",")
+			fwb.WriteString("\"Area" + v.PropertyName + "\":\"" + v.Text + "\"")
+		}
+		fwb.WriteString("}")
+	}
+	fwb.WriteString("]")
+
+	fwb.WriteString("}")
+	var sendText = fwb.String()
+
+	return []byte(sendText), nil
+
+}
+
 type ChuteSlotsChange struct {
 	OldValue struct {
 		ChuteSlot struct {
-			Value []struct {
-				Text         string `xml:",chardata"`
-				PropertyName string `xml:"propertyName,attr"`
-			} `xml:"Value"`
+			Value PropertyValuePair `xml:"Value"`
+			Chute struct {
+				Value []PropertyValuePair `xml:"Value"`
+				Area  struct {
+					Value PropertyValuePair `xml:"Value"`
+				} `xml:"Area"`
+			} `xml:"Chute"`
 		} `xml:"ChuteSlot"`
 	} `xml:"OldValue"`
 	NewValue struct {
@@ -737,50 +1042,14 @@ type RouteChange struct {
 	} `xml:"NewValue"`
 }
 
-// type LinkedFlightChange struct {
-// 	OldValue struct {
-// 		LinkedFlight struct {
-// 			FlightId struct {
-// 				FlightKind        string `xml:"FlightKind"`
-// 				AirlineDesignator []struct {
-// 					Text        string `xml:",chardata"`
-// 					CodeContext string `xml:"codeContext,attr"`
-// 				} `xml:"AirlineDesignator"`
-// 				FlightNumber  string `xml:"FlightNumber"`
-// 				ScheduledDate string `xml:"ScheduledDate"`
-// 				AirportCode   []struct {
-// 					Text        string `xml:",chardata"`
-// 					CodeContext string `xml:"codeContext,attr"`
-// 				} `xml:"AirportCode"`
-// 			} `xml:"FlightId"`
-// 			Value []struct {
-// 				Text         string `xml:",chardata"`
-// 				PropertyName string `xml:"propertyName,attr"`
-// 			} `xml:"Value"`
-// 		} `xml:"LinkedFlight"`
-// 	} `xml:"OldValue"`
-// 	NewValue struct {
-// 		LinkedFlight struct {
-// 			FlightId struct {
-// 				FlightKind        string `xml:"FlightKind"`
-// 				AirlineDesignator []struct {
-// 					Text        string `xml:",chardata"`
-// 					CodeContext string `xml:"codeContext,attr"`
-// 				} `xml:"AirlineDesignator"`
-// 				FlightNumber  string `xml:"FlightNumber"`
-// 				ScheduledDate string `xml:"ScheduledDate"`
-// 				AirportCode   []struct {
-// 					Text        string `xml:",chardata"`
-// 					CodeContext string `xml:"codeContext,attr"`
-// 				} `xml:"AirportCode"`
-// 			} `xml:"FlightId"`
-// 			Value []struct {
-// 				Text         string `xml:",chardata"`
-// 				PropertyName string `xml:"propertyName,attr"`
-// 			} `xml:"Value"`
-// 		} `xml:"LinkedFlight"`
-// 	} `xml:"NewValue"`
-// }
+type CheckInSlotsChange struct {
+	OldValue struct {
+		CheckInSlot []CheckInSlot `xml:"CheckInSlot" json:"CheckInSlots"`
+	} `xml:"OldValue"`
+	NewValue struct {
+		CheckInSlot []CheckInSlot `xml:"CheckInSlot" json:"CheckInSlots"`
+	} `xml:"NewValue"`
+}
 
 type LinkedFlightChange struct {
 	OldValue struct {
@@ -807,7 +1076,7 @@ type FlightChanges struct {
 	AircraftChange      *AircraftChange      `xml:"AircraftChange" json:"AircraftChange"`
 	CarouselSlotsChange *CarouselSlotsChange `xml:"CarouselSlotsChange" json:"CarouselSlotsChange"`
 	GateSlotsChange     *GateSlotsChange     `xml:"GateSlotsChange" json:"GateSlotsChange"`
-	StandSlotsChange    *StandSlotChange     `xml:"StandSlotsChange" json:"StandSlotsChange"`
+	StandSlotsChange    *StandSlotsChange    `xml:"StandSlotsChange" json:"StandSlotsChange"`
 	ChuteSlotsChange    *ChuteSlotsChange    `xml:"ChuteSlotsChange" json:"ChuteSlotsChange"`
 	CheckinSlotsChange  *CheckInSlotsChange  `xml:"CheckInSlotsChange" json:"CheckInSlotsChange"`
 	RouteChange         *RouteChange         `xml:"RouteChange" json:"RouteChange"`

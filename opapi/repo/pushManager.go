@@ -3,6 +3,7 @@ package repo
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/tls"
 	"os"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/daveontour/opapi/opapi/globals"
 	"github.com/daveontour/opapi/opapi/models"
 	"github.com/daveontour/opapi/opapi/timeservice"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 // Channels for handling the push notifications
@@ -105,6 +107,7 @@ func HandleFlightCreate(mess models.FlightUpdateChannelMessage) {
 func HandleFlightDelete(flt models.Flight) {
 	flt.Action = "DELETE"
 	checkForImpactedDeleteSubscription(flt)
+	publisUpdateToRabbit(flt, flt.GetIATAAirport())
 	return
 }
 
@@ -118,6 +121,8 @@ func checkForImpactedSubscription(mess models.FlightUpdateChannelMessage, action
 	if sto.Local().After(time.Now().Local().Add(36 * time.Hour)) {
 		return
 	}
+
+	publisUpdateToRabbit(*flt, flt.GetIATAAirport())
 
 	globals.UserChangeSubscriptionsMutex.Lock()
 	defer globals.UserChangeSubscriptionsMutex.Unlock()
@@ -278,11 +283,16 @@ func executeChangePushWorker(id int, jobs <-chan models.ChangePushJob) {
 			return
 		}
 		fwb := bufio.NewWriterSize(file, 32768)
-
 		job.Flight.WriteJSON(fwb, job.UserProfile)
 		fwb.Flush()
-
 		bytesdata, _ := os.ReadFile(file.Name())
+
+		//If configured, send to Rabbit Exchange
+		if job.Sub.PublishChangesRabbitMQConnectionString != "" &&
+			job.Sub.PublishChangesRabbitMQExchange != "" &&
+			job.Sub.PublishChangesRabbitMQTopic != "" {
+			publishChangeToRabbit(file.Name(), &job)
+		}
 
 		req, err := http.NewRequest(http.MethodPost, job.Sub.DestinationURL, bytes.NewReader(bytesdata))
 		if err != nil {
@@ -345,6 +355,7 @@ func executeScheduledPushWorker(id int, jobs <-chan models.SchedulePushJob) {
 			fileName, _ := writeResourceResponseToFile(resourceresponse, job.UserProfile)
 			sendViaHTTPClient(fileName, &job)
 		}
+
 	}
 }
 
@@ -360,6 +371,12 @@ func sendViaHTTPClient(fileName string, job *models.SchedulePushJob) {
 			fmt.Println("Temp file deleted for HTTP Client Send")
 		}
 	}()
+
+	if job.Sub.PublishStatusRabbitMQConnectionString != "" &&
+		job.Sub.PublishStatusRabbitMQExchange != "" &&
+		job.Sub.PublishStatusRabbitMQTopic != "" {
+		publishPushToRabbit(fileName, job)
+	}
 
 	req, err := http.NewRequest(http.MethodPost, job.Sub.DestinationURL, bytes.NewReader(bytesdata))
 	if err != nil {
@@ -392,4 +409,174 @@ func sendViaHTTPClient(fileName string, job *models.SchedulePushJob) {
 		globals.Logger.Error(fmt.Sprintf("Scheduled Push Client. Error making HTTP request: Returned status code = %v. URL = %s", r.StatusCode, job.Sub.DestinationURL))
 		return
 	}
+
+}
+
+func publishChangeToRabbit(fileName string, job *models.ChangePushJob) {
+
+	connString := job.Sub.PublishChangesRabbitMQConnectionString
+	exchange := job.Sub.PublishChangesRabbitMQExchange
+	routingKey := job.Sub.PublishChangesRabbitMQTopic
+
+	if connString == "" || exchange == "" || routingKey == "" {
+		return
+	}
+
+	bytesdata, _ := os.ReadFile(fileName)
+
+	conn, err := amqp.Dial(connString)
+	failOnError(err, "Failed to connect to RabbitMQ")
+	defer conn.Close()
+
+	ch, err := conn.Channel()
+	failOnError(err, "Failed to open a channel")
+	defer ch.Close()
+
+	err = ch.ExchangeDeclare(
+		exchange, // name
+		"topic",  // type
+		true,     // durable
+		false,    // auto-deleted
+		false,    // internal
+		false,    // no-wait
+		nil,      // arguments
+	)
+	failOnError(err, "Failed to declare an exchange")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err = ch.PublishWithContext(ctx,
+		exchange,   // exchange
+		routingKey, // routing key
+		false,      // mandatory
+		false,      // immediate
+		amqp.Publishing{
+			ContentType: "text/plain",
+			Body:        bytesdata,
+		})
+	failOnError(err, "Failed to publish a message")
+}
+
+func publishPushToRabbit(fileName string, job *models.SchedulePushJob) {
+
+	connString := job.Sub.PublishStatusRabbitMQConnectionString
+	exchange := job.Sub.PublishStatusRabbitMQExchange
+	routingKey := job.Sub.PublishStatusRabbitMQTopic
+
+	if connString == "" || exchange == "" || routingKey == "" {
+		return
+	}
+
+	bytesdata, _ := os.ReadFile(fileName)
+
+	conn, err := amqp.Dial(connString)
+	failOnError(err, "Failed to connect to RabbitMQ")
+	defer conn.Close()
+
+	ch, err := conn.Channel()
+	failOnError(err, "Failed to open a channel")
+	defer ch.Close()
+
+	err = ch.ExchangeDeclare(
+		exchange, // name
+		"topic",  // type
+		true,     // durable
+		false,    // auto-deleted
+		false,    // internal
+		false,    // no-wait
+		nil,      // arguments
+	)
+	failOnError(err, "Failed to declare an exchange")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err = ch.PublishWithContext(ctx,
+		exchange,   // exchange
+		routingKey, // routing key
+		false,      // mandatory
+		false,      // immediate
+		amqp.Publishing{
+			ContentType: "text/plain",
+			Body:        bytesdata,
+		})
+	failOnError(err, "Failed to publish a message")
+}
+
+func publisUpdateToRabbit(flt models.Flight, airportCode string) {
+
+	repo := GetRepo(airportCode)
+
+	connString := repo.PublishChangesRabbitMQConnectionString
+	exchange := repo.PublishChangesRabbitMQExchange
+	routingKey := repo.PublishChangesRabbitMQTopic
+
+	if connString == "" || exchange == "" || routingKey == "" {
+		return
+	}
+
+	file, errs := os.CreateTemp("", "rabbitchangeflighttemp-*.json")
+	if errs != nil {
+		fmt.Println(errs)
+		return
+	}
+
+	profile := models.UserProfile{}
+	for _, u := range globals.GetUserProfiles() {
+		if "default" == u.Key {
+			profile = u
+			break
+		}
+	}
+
+	fwb := bufio.NewWriterSize(file, 32768)
+	flt.WriteJSON(fwb, &profile)
+	fwb.Flush()
+	bytesdata, _ := os.ReadFile(file.Name())
+
+	defer func() {
+		file.Close()
+
+		err := os.Remove(file.Name())
+		if err != nil {
+			fmt.Println(err.Error())
+		} else {
+			fmt.Println("Temp file deleted for Rabbit Change PUSH Send")
+		}
+	}()
+
+	conn, err := amqp.Dial(connString)
+	failOnError(err, "Failed to connect to RabbitMQ")
+	defer conn.Close()
+
+	ch, err := conn.Channel()
+	failOnError(err, "Failed to open a channel")
+	defer ch.Close()
+
+	err = ch.ExchangeDeclare(
+		exchange, // name
+		"topic",  // type
+		true,     // durable
+		false,    // auto-deleted
+		false,    // internal
+		false,    // no-wait
+		nil,      // arguments
+	)
+	failOnError(err, "Failed to declare an exchange")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err = ch.PublishWithContext(ctx,
+		exchange,   // exchange
+		routingKey, // routing key
+		false,      // mandatory
+		false,      // immediate
+		amqp.Publishing{
+			ContentType: "text/plain",
+			Body:        bytesdata,
+		})
+	failOnError(err, "Failed to publish a message")
+
 }

@@ -57,26 +57,29 @@ type Repositories struct {
 	Repositories []Repository `json:"airports"`
 }
 type Repository struct {
-	AMSAirport                          string `json:"AMSAirport"`
-	AMSSOAPServiceURL                   string `json:"AMSSOAPServiceURL"`
-	AMSRestServiceURL                   string `json:"AMSRestServiceURL"`
-	AMSToken                            string `json:"AMSToken"`
-	FlightSDOWindowMinimumInDaysFromNow int    `json:"FlightSDOWindowMinimumInDaysFromNow"`
-	FlightSDOWindowMaximumInDaysFromNow int    `json:"FlightSDOWindowMaximumInDaysFromNow"`
-	ListenerType                        string `json:"ListenerType"`
-	RabbitMQConnectionString            string `json:"RabbitMQConnectionString"`
-	RabbitMQExchange                    string `json:"RabbitMQExchange"`
-	RabbitMQTopic                       string `json:"RabbitMQTopic"`
-	NotificationListenerQueue           string `json:"NotificationListenerQueue"`
-	LoadFlightChunkSizeInDays           int    `json:"LoadFlightChunkSizeInDays"`
-	FlightLinkedList                    FlightLinkedList
-	CurrentLowerLimit                   time.Time
-	CurrentUpperLimit                   time.Time
-	CheckInList                         ResourceLinkedList
-	StandList                           ResourceLinkedList
-	GateList                            ResourceLinkedList
-	CarouselList                        ResourceLinkedList
-	ChuteList                           ResourceLinkedList
+	AMSAirport                             string `json:"AMSAirport"`
+	AMSSOAPServiceURL                      string `json:"AMSSOAPServiceURL"`
+	AMSRestServiceURL                      string `json:"AMSRestServiceURL"`
+	AMSToken                               string `json:"AMSToken"`
+	FlightSDOWindowMinimumInDaysFromNow    int    `json:"FlightSDOWindowMinimumInDaysFromNow"`
+	FlightSDOWindowMaximumInDaysFromNow    int    `json:"FlightSDOWindowMaximumInDaysFromNow"`
+	ListenerType                           string `json:"ListenerType"`
+	RabbitMQConnectionString               string `json:"RabbitMQConnectionString"`
+	RabbitMQExchange                       string `json:"RabbitMQExchange"`
+	RabbitMQTopic                          string `json:"RabbitMQTopic"`
+	PublishChangesRabbitMQConnectionString string `json:"PublishChangesRabbitMQConnectionString"`
+	PublishChangesRabbitMQExchange         string `json:"PublishChangesRabbitMQExchange"`
+	PublishChangesRabbitMQTopic            string `json:"PublishChangesRabbitMQTopic"`
+	NotificationListenerQueue              string `json:"NotificationListenerQueue"`
+	LoadFlightChunkSizeInDays              int    `json:"LoadFlightChunkSizeInDays"`
+	FlightLinkedList                       FlightLinkedList
+	CurrentLowerLimit                      time.Time
+	CurrentUpperLimit                      time.Time
+	CheckInList                            ResourceLinkedList
+	StandList                              ResourceLinkedList
+	GateList                               ResourceLinkedList
+	CarouselList                           ResourceLinkedList
+	ChuteList                              ResourceLinkedList
 }
 type FixedResources struct {
 	Values []FixedResource `xml:"FixedResource"`
@@ -223,47 +226,53 @@ type UserProfile struct {
 	UserChangeSubscriptions      []UserChangeSubscription `json:"UserChangeSubscriptions"`
 }
 type UserPushSubscription struct {
-	Enabled               bool
-	EnableInDemoMode      bool
-	PushOnStartUp         bool
-	Airport               string
-	DestinationURL        string
-	HeaderParameters      []ParameterValuePair
-	SubscriptionType      string
-	Time                  string
-	ReptitionHours        int
-	ReptitionMinutes      int
-	Airline               string
-	From                  int
-	To                    int
-	QueryableCustomFields []ParameterValuePair
-	ResourceType          string
-	ResourceID            string
-	Route                 string
-	Direction             string
-	TrustBadCertificates  bool
+	Enabled                               bool
+	EnableInDemoMode                      bool
+	PushOnStartUp                         bool
+	Airport                               string
+	DestinationURL                        string
+	HeaderParameters                      []ParameterValuePair
+	SubscriptionType                      string
+	Time                                  string
+	ReptitionHours                        int
+	ReptitionMinutes                      int
+	Airline                               string
+	From                                  int
+	To                                    int
+	QueryableCustomFields                 []ParameterValuePair
+	ResourceType                          string
+	ResourceID                            string
+	Route                                 string
+	Direction                             string
+	TrustBadCertificates                  bool
+	PublishStatusRabbitMQConnectionString string
+	PublishStatusRabbitMQExchange         string
+	PublishStatusRabbitMQTopic            string
 }
 type UserChangeSubscription struct {
-	Enabled                  bool
-	Airport                  string
-	DestinationURL           string
-	HeaderParameters         []ParameterValuePair
-	CheckInChange            bool
-	GateChange               bool
-	StandChange              bool
-	CarouselChange           bool
-	ChuteChange              bool
-	AircraftTypeOrRegoChange bool
-	RouteChange              bool
-	LinkedFlightChange       bool
-	EventChange              bool
-	CreateFlight             bool
-	DeleteFlight             bool
-	UpdateFlight             bool
-	All                      bool
-	ParameterChange          []string
-	TrustBadCertificates     bool
-	UserKey                  string
+	Enabled                                bool
+	Airport                                string
+	DestinationURL                         string
+	HeaderParameters                       []ParameterValuePair
+	CheckInChange                          bool
+	GateChange                             bool
+	StandChange                            bool
+	CarouselChange                         bool
+	ChuteChange                            bool
+	AircraftTypeOrRegoChange               bool
+	RouteChange                            bool
+	LinkedFlightChange                     bool
+	EventChange                            bool
+	CreateFlight                           bool
+	DeleteFlight                           bool
+	UpdateFlight                           bool
+	All                                    bool
+	ParameterChange                        []string
+	TrustBadCertificates                   bool
+	UserKey                                string
+	PublishChangesRabbitMQConnectionString string
+	PublishChangesRabbitMQExchange         string
+	PublishChangesRabbitMQTopic            string
 }
 
 type ResourceLinkedList struct {

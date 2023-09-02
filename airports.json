@@ -12,7 +12,10 @@
             "LoadFlightChunkSizeInDays": 4,
             "RabbitMQConnectionString": "amqp://amsauh:amsauh@localhost:5672/amsauh",
             "RabbitMQExchange": "Test",
-            "RabbitMQTopic": "AMSX.Notify"
+            "RabbitMQTopic": "AMSX.Notify",
+            "PublishChangesRabbitMQConnectionString": "amqp://amsauh:amsauh@localhost:5672/amsauh",
+            "PublishChangesRabbitMQExchange": "Test",
+            "PublishChangesRabbitMQTopic": "AMSJSON.Notify"
         }
     ]
 }
