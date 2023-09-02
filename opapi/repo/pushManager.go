@@ -187,33 +187,43 @@ NextSub:
 
 		}
 
+		change := models.ChangePushJob{Sub: sub, Flight: flt, UserProfile: &profile}
+
 		if sub.CheckInChange && (*flt).FlightChanges.CheckinSlotsChange != nil {
-			changePushJobChannel <- models.ChangePushJob{Sub: sub, Flight: flt, UserProfile: &profile}
+			changePushJobChannel <- change
 			continue
 		}
 		if sub.GateChange && (*flt).FlightChanges.GateSlotsChange != nil {
-			changePushJobChannel <- models.ChangePushJob{Sub: sub, Flight: flt, UserProfile: &profile}
+			changePushJobChannel <- change
 			continue
 		}
 		if sub.StandChange && (*flt).FlightChanges.StandSlotsChange != nil {
-			changePushJobChannel <- models.ChangePushJob{Sub: sub, Flight: flt, UserProfile: &profile}
+			changePushJobChannel <- change
 			continue
 		}
 		if sub.ChuteChange && (*flt).FlightChanges.ChuteSlotsChange != nil {
-			changePushJobChannel <- models.ChangePushJob{Sub: sub, Flight: flt, UserProfile: &profile}
+			changePushJobChannel <- change
 			continue
 		}
 		if sub.CarouselChange && (*flt).FlightChanges.CarouselSlotsChange != nil {
-			changePushJobChannel <- models.ChangePushJob{Sub: sub, Flight: flt, UserProfile: &profile}
+			changePushJobChannel <- change
 			continue
 		}
 
 		if sub.AircraftTypeOrRegoChange && (*flt).FlightChanges.AircraftTypeChange != nil {
-			changePushJobChannel <- models.ChangePushJob{Sub: sub, Flight: flt, UserProfile: &profile}
+			changePushJobChannel <- change
 			continue
 		}
 		if sub.AircraftTypeOrRegoChange && (*flt).FlightChanges.AircraftChange != nil {
-			changePushJobChannel <- models.ChangePushJob{Sub: sub, Flight: flt, UserProfile: &profile}
+			changePushJobChannel <- change
+			continue
+		}
+		if sub.RouteChange && (*flt).FlightChanges.RouteChange != nil {
+			changePushJobChannel <- change
+			continue
+		}
+		if sub.LinkedFlightChange && (*flt).FlightChanges.LinkedFlightChange != nil {
+			changePushJobChannel <- change
 			continue
 		}
 	}

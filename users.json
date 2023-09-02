@@ -34,6 +34,8 @@
                     "CarouselChange": true,
                     "ChuteChange": true,
                     "AircraftTypeOrRegoChange": true,
+                    "RouteChange": true,
+                    "LinkedFlightChange":true,
                     "EventChange": true,
                     "CustomFieldChange": [
                         "Stand"

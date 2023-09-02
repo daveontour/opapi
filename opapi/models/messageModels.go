@@ -254,6 +254,8 @@ type UserChangeSubscription struct {
 	CarouselChange           bool
 	ChuteChange              bool
 	AircraftTypeOrRegoChange bool
+	RouteChange              bool
+	LinkedFlightChange       bool
 	EventChange              bool
 	CreateFlight             bool
 	DeleteFlight             bool

@@ -53,10 +53,46 @@ func (d *FlightId) WriteJSON(fwb *bufio.Writer) error {
 			}
 			fwb.WriteString("\"" + al.CodeContext + "\":\"" + al.Text + "\"")
 		}
+		fwb.WriteString("}")
 	}
-	fwb.WriteString("}")
+
 	fwb.WriteString("}")
 	return nil
+}
+
+func (d *FlightId) MarshalJSON() ([]byte, error) {
+
+	fwb := strings.Builder{}
+	fwb.WriteString("{")
+	fwb.WriteString("\"FlightKind\":\"" + d.FlightKind + "\",")
+	fwb.WriteString("\"FlightNumber\":\"" + d.FlightNumber + "\",")
+	fwb.WriteString("\"ScheduledDate\":\"" + string(d.ScheduledDate) + "\"")
+	if d.AirportCode != nil {
+		fwb.WriteString(",\"AirportCode\":{")
+		for idx, apt := range d.AirportCode {
+			if idx > 0 {
+				fwb.WriteString(",")
+			}
+			fwb.WriteString("\"" + apt.CodeContext + "\":\"" + apt.Text + "\"")
+		}
+		fwb.WriteString("}")
+	}
+	if d.AirlineDesignator != nil {
+		fwb.WriteString(",\"AirlineDesignator\":{")
+		for idx, al := range d.AirlineDesignator {
+			if idx > 0 {
+				fwb.WriteString(",")
+			}
+			fwb.WriteString("\"" + al.CodeContext + "\":\"" + al.Text + "\"")
+		}
+		fwb.WriteString("}")
+	}
+
+	fwb.WriteString("}")
+
+	var sendText = fwb.String()
+
+	return []byte(sendText), nil
 }
 
 type Value struct {
@@ -194,6 +230,39 @@ func (r *ViaPoints) WriteJSON(fwb *bufio.Writer) error {
 	fwb.WriteString("]")
 
 	return nil
+}
+
+func (r *ViaPoints) MarshalJSON() ([]byte, error) {
+
+	fwb := strings.Builder{}
+
+	fwb.WriteString("[")
+
+	for idx, rvp := range r.RouteViaPoint {
+		if idx > 0 {
+			fwb.WriteString(",")
+		}
+		fwb.WriteString("{")
+
+		fwb.WriteString("\"SequenceNumber\":\"" + rvp.SequenceNumber + "\",")
+
+		fwb.WriteString("\"AirportCode\":{")
+
+		for idx2, apt := range rvp.AirportCode {
+			if idx2 > 0 {
+				fwb.WriteString(",")
+			}
+			fwb.WriteString("\"" + apt.CodeContext + "\":\"" + apt.Text + "\"")
+		}
+
+		fwb.WriteString("}}")
+	}
+
+	fwb.WriteString("]")
+
+	var sendText = fwb.String()
+
+	return []byte(sendText), nil
 }
 
 type Route struct {
@@ -653,6 +722,86 @@ type AircraftChange struct {
 		} `xml:"Aircraft"`
 	} `xml:"NewValue"`
 }
+type RouteChange struct {
+	OldValue struct {
+		Route struct {
+			CustomsType string    `xml:"customsType,attr"`
+			ViaPoints   ViaPoints `xml:"ViaPoints"`
+		} `xml:"Route"`
+	} `xml:"OldValue"`
+	NewValue struct {
+		Route struct {
+			CustomsType string    `xml:"customsType,attr"`
+			ViaPoints   ViaPoints `xml:"ViaPoints"`
+		} `xml:"Route"`
+	} `xml:"NewValue"`
+}
+
+// type LinkedFlightChange struct {
+// 	OldValue struct {
+// 		LinkedFlight struct {
+// 			FlightId struct {
+// 				FlightKind        string `xml:"FlightKind"`
+// 				AirlineDesignator []struct {
+// 					Text        string `xml:",chardata"`
+// 					CodeContext string `xml:"codeContext,attr"`
+// 				} `xml:"AirlineDesignator"`
+// 				FlightNumber  string `xml:"FlightNumber"`
+// 				ScheduledDate string `xml:"ScheduledDate"`
+// 				AirportCode   []struct {
+// 					Text        string `xml:",chardata"`
+// 					CodeContext string `xml:"codeContext,attr"`
+// 				} `xml:"AirportCode"`
+// 			} `xml:"FlightId"`
+// 			Value []struct {
+// 				Text         string `xml:",chardata"`
+// 				PropertyName string `xml:"propertyName,attr"`
+// 			} `xml:"Value"`
+// 		} `xml:"LinkedFlight"`
+// 	} `xml:"OldValue"`
+// 	NewValue struct {
+// 		LinkedFlight struct {
+// 			FlightId struct {
+// 				FlightKind        string `xml:"FlightKind"`
+// 				AirlineDesignator []struct {
+// 					Text        string `xml:",chardata"`
+// 					CodeContext string `xml:"codeContext,attr"`
+// 				} `xml:"AirlineDesignator"`
+// 				FlightNumber  string `xml:"FlightNumber"`
+// 				ScheduledDate string `xml:"ScheduledDate"`
+// 				AirportCode   []struct {
+// 					Text        string `xml:",chardata"`
+// 					CodeContext string `xml:"codeContext,attr"`
+// 				} `xml:"AirportCode"`
+// 			} `xml:"FlightId"`
+// 			Value []struct {
+// 				Text         string `xml:",chardata"`
+// 				PropertyName string `xml:"propertyName,attr"`
+// 			} `xml:"Value"`
+// 		} `xml:"LinkedFlight"`
+// 	} `xml:"NewValue"`
+// }
+
+type LinkedFlightChange struct {
+	OldValue struct {
+		LinkedFlight struct {
+			FlightId FlightId `xml:"FlightId"`
+			Value    []struct {
+				Text         string `xml:",chardata"`
+				PropertyName string `xml:"propertyName,attr"`
+			} `xml:"Value"`
+		} `xml:"LinkedFlight"`
+	} `xml:"OldValue"`
+	NewValue struct {
+		LinkedFlight struct {
+			FlightId FlightId `xml:"FlightId"`
+			Value    []struct {
+				Text         string `xml:",chardata"`
+				PropertyName string `xml:"propertyName,attr"`
+			} `xml:"Value"`
+		} `xml:"LinkedFlight"`
+	} `xml:"NewValue"`
+}
 type FlightChanges struct {
 	AircraftTypeChange  *AircraftTypeChange  `xml:"AircraftTypeChange" json:"AircraftTypeChange"`
 	AircraftChange      *AircraftChange      `xml:"AircraftChange" json:"AircraftChange"`
@@ -661,6 +810,8 @@ type FlightChanges struct {
 	StandSlotsChange    *StandSlotChange     `xml:"StandSlotsChange" json:"StandSlotsChange"`
 	ChuteSlotsChange    *ChuteSlotsChange    `xml:"ChuteSlotsChange" json:"ChuteSlotsChange"`
 	CheckinSlotsChange  *CheckInSlotsChange  `xml:"CheckInSlotsChange" json:"CheckInSlotsChange"`
+	RouteChange         *RouteChange         `xml:"RouteChange" json:"RouteChange"`
+	LinkedFlightChange  *LinkedFlightChange  `xml:"LinkedFlightChange" json:"LinkedFlightChange"`
 	Changes             []Change             `xml:"Change"  json:"-" `
 }
 type Flight struct {
