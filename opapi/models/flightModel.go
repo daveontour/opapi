@@ -1093,7 +1093,7 @@ type Flight struct {
 	LastUpdate    time.Time     `xml:"LastUpdate" json:"LastUpdate"`
 }
 
-func (d *Flight) WriteJSON(fwb *bufio.Writer, userProfile *UserProfile) error {
+func (d *Flight) WriteJSON(fwb *bufio.Writer, userProfile *UserProfile, statusOnly bool) error {
 
 	fwb.WriteString("{")
 
@@ -1106,23 +1106,27 @@ func (d *Flight) WriteJSON(fwb *bufio.Writer, userProfile *UserProfile) error {
 	fwb.WriteString(`"FlightState":`)
 	d.FlightState.WriteJSON(fwb, userProfile)
 
-	// Using the built in JSON serialiser for the Changes because I'm too lazy to write a custom serilaizer
-	flightChanges, _ := json.Marshal(d.FlightChanges)
-	fwb.WriteString("},\n\"Changes\":")
-	fwb.Write(flightChanges)
-	fwb.WriteString(",\n\"ValueChanges\":[")
-	f := false
-	for idx, c := range d.FlightChanges.Changes {
-		if contains(userProfile.AllowedCustomFields, c.PropertyName) || contains(userProfile.AllowedCustomFields, "*") {
-			if idx > 0 && f {
-				fwb.WriteString(",")
+	if statusOnly {
+		fwb.WriteString("}}")
+	} else {
+		// Using the built in JSON serialiser for the Changes because I'm too lazy to write a custom serilaizer
+		flightChanges, _ := json.Marshal(d.FlightChanges)
+		fwb.WriteString("},\n\"Changes\":")
+		fwb.Write(flightChanges)
+		fwb.WriteString(",\n\"ValueChanges\":[")
+		f := false
+		for idx, c := range d.FlightChanges.Changes {
+			if contains(userProfile.AllowedCustomFields, c.PropertyName) || contains(userProfile.AllowedCustomFields, "*") {
+				if idx > 0 && f {
+					fwb.WriteString(",")
+				}
+				f = true
+				fwb.WriteString("{\"PropertyName\":\"" + c.PropertyName + "\", \"OldValue\":\"" + c.OldValue + "\",\"NewValue\":\"" + c.NewValue + "\"}")
 			}
-			f = true
-			fwb.WriteString("{\"PropertyName\":\"" + c.PropertyName + "\", \"OldValue\":\"" + c.OldValue + "\",\"NewValue\":\"" + c.NewValue + "\"}")
 		}
-	}
 
-	fwb.WriteString("]}")
+		fwb.WriteString("]}")
+	}
 
 	return nil
 

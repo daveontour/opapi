@@ -107,7 +107,7 @@ func HandleFlightCreate(mess models.FlightUpdateChannelMessage) {
 func HandleFlightDelete(flt models.Flight) {
 	flt.Action = "DELETE"
 	checkForImpactedDeleteSubscription(flt)
-	publisUpdateToRabbit(flt, flt.GetIATAAirport())
+	publishAllUpdatesToRabbit(flt)
 	return
 }
 
@@ -122,7 +122,7 @@ func checkForImpactedSubscription(mess models.FlightUpdateChannelMessage, action
 		return
 	}
 
-	publisUpdateToRabbit(*flt, flt.GetIATAAirport())
+	publishAllUpdatesToRabbit(*flt)
 
 	globals.UserChangeSubscriptionsMutex.Lock()
 	defer globals.UserChangeSubscriptionsMutex.Unlock()
@@ -277,21 +277,43 @@ func executeChangePushWorker(id int, jobs <-chan models.ChangePushJob) {
 	for job := range jobs {
 		globals.Logger.Debug(fmt.Sprintf("Push Worker: %d Executing Change Push for User ", id))
 
+		if !job.Sub.HTTPEnabled && !job.Sub.RMQEnabled {
+			globals.Logger.Debug(fmt.Sprintf("Push Worker: %d No endpoints enabled for user ", id))
+			return
+		}
+
 		file, errs := os.CreateTemp("", "changeflighttemp-*.txt")
 		if errs != nil {
 			fmt.Println(errs)
 			return
 		}
+		defer func() {
+			file.Close()
+
+			err := os.Remove(file.Name())
+			if err != nil {
+				fmt.Println(err.Error())
+			} else {
+				fmt.Println("Temp file deleted for Change PUSH Send")
+			}
+		}()
+
 		fwb := bufio.NewWriterSize(file, 32768)
-		job.Flight.WriteJSON(fwb, job.UserProfile)
+		job.Flight.WriteJSON(fwb, job.UserProfile, false)
 		fwb.Flush()
 		bytesdata, _ := os.ReadFile(file.Name())
 
 		//If configured, send to Rabbit Exchange
 		if job.Sub.PublishChangesRabbitMQConnectionString != "" &&
 			job.Sub.PublishChangesRabbitMQExchange != "" &&
-			job.Sub.PublishChangesRabbitMQTopic != "" {
+			job.Sub.PublishChangesRabbitMQTopic != "" &&
+			job.Sub.RMQEnabled {
 			publishChangeToRabbit(file.Name(), &job)
+		}
+
+		if job.Sub.DestinationURL == "" ||
+			!job.Sub.HTTPEnabled {
+			return
 		}
 
 		req, err := http.NewRequest(http.MethodPost, job.Sub.DestinationURL, bytes.NewReader(bytesdata))
@@ -312,15 +334,6 @@ func executeChangePushWorker(id int, jobs <-chan models.ChangePushJob) {
 			Transport: tr,
 		}
 		r, sendErr := client.Do(req)
-
-		file.Close()
-
-		err = os.Remove(file.Name())
-		if err != nil {
-			fmt.Println(err.Error())
-		} else {
-			fmt.Println("Temp file deleted for Change PUSH Send")
-		}
 
 		if sendErr != nil {
 			globals.Logger.Error(fmt.Sprintf("Change Push Client. Error making http request: %s", sendErr))
@@ -344,15 +357,40 @@ func executeScheduledPushWorker(id int, jobs <-chan models.SchedulePushJob) {
 
 		globals.Logger.Info(fmt.Sprintf("Executing Scheduled Push for User %s", job.UserName))
 
+		if !job.Sub.HTTPEnabled && !job.Sub.RMQEnabled {
+			globals.Logger.Debug(fmt.Sprintf("Push Worker: %d No endpoints enabled for user ", id))
+			return
+		}
+
+		var fileName string
+
 		if strings.ToLower(job.Sub.SubscriptionType) == "flight" {
-
 			flightresponse, _ := GetRequestedFlightsSub(job.Sub, job.UserToken)
-			fileName, _ := writeFlightResponseToFile(flightresponse, job.UserProfile)
-			sendViaHTTPClient(fileName, &job)
-
+			fileName, _ = writeFlightResponseToFile(flightresponse, job.UserProfile, true)
 		} else if strings.ToLower(job.Sub.SubscriptionType) == "resource" {
 			resourceresponse, _ := GetResourceSub(job.Sub, job.UserToken)
-			fileName, _ := writeResourceResponseToFile(resourceresponse, job.UserProfile)
+			fileName, _ = writeResourceResponseToFile(resourceresponse, job.UserProfile)
+
+		}
+
+		defer func() {
+			err := os.Remove(fileName)
+			if err != nil {
+				fmt.Println(err.Error())
+			} else {
+				fmt.Println("Temp file deleted for HTTP Client Send")
+			}
+		}()
+
+		//Send to RabbitMQ if configured and enabled
+		if job.Sub.PublishStatusRabbitMQConnectionString != "" &&
+			job.Sub.PublishStatusRabbitMQExchange != "" &&
+			job.Sub.PublishStatusRabbitMQTopic != "" &&
+			job.Sub.RMQEnabled {
+			publishPushToRabbit(fileName, &job)
+		}
+		//Send to HTTP if configured and enabled
+		if job.Sub.HTTPEnabled && job.Sub.DestinationURL != "" {
 			sendViaHTTPClient(fileName, &job)
 		}
 
@@ -362,21 +400,6 @@ func executeScheduledPushWorker(id int, jobs <-chan models.SchedulePushJob) {
 func sendViaHTTPClient(fileName string, job *models.SchedulePushJob) {
 
 	bytesdata, _ := os.ReadFile(fileName)
-
-	defer func() {
-		err := os.Remove(fileName)
-		if err != nil {
-			fmt.Println(err.Error())
-		} else {
-			fmt.Println("Temp file deleted for HTTP Client Send")
-		}
-	}()
-
-	if job.Sub.PublishStatusRabbitMQConnectionString != "" &&
-		job.Sub.PublishStatusRabbitMQExchange != "" &&
-		job.Sub.PublishStatusRabbitMQTopic != "" {
-		publishPushToRabbit(fileName, job)
-	}
 
 	req, err := http.NewRequest(http.MethodPost, job.Sub.DestinationURL, bytes.NewReader(bytesdata))
 	if err != nil {
@@ -504,8 +527,9 @@ func publishPushToRabbit(fileName string, job *models.SchedulePushJob) {
 	failOnError(err, "Failed to publish a message")
 }
 
-func publisUpdateToRabbit(flt models.Flight, airportCode string) {
+func publishAllUpdatesToRabbit(flt models.Flight) {
 
+	airportCode := flt.GetIATAAirport()
 	repo := GetRepo(airportCode)
 
 	connString := repo.PublishChangesRabbitMQConnectionString
@@ -531,7 +555,7 @@ func publisUpdateToRabbit(flt models.Flight, airportCode string) {
 	}
 
 	fwb := bufio.NewWriterSize(file, 32768)
-	flt.WriteJSON(fwb, &profile)
+	flt.WriteJSON(fwb, &profile, false)
 	fwb.Flush()
 	bytesdata, _ := os.ReadFile(file.Name())
 

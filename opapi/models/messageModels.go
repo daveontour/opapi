@@ -248,6 +248,8 @@ type UserPushSubscription struct {
 	PublishStatusRabbitMQConnectionString string
 	PublishStatusRabbitMQExchange         string
 	PublishStatusRabbitMQTopic            string
+	HTTPEnabled                           bool
+	RMQEnabled                            bool
 }
 type UserChangeSubscription struct {
 	Enabled                                bool
@@ -273,6 +275,8 @@ type UserChangeSubscription struct {
 	PublishChangesRabbitMQConnectionString string
 	PublishChangesRabbitMQExchange         string
 	PublishChangesRabbitMQTopic            string
+	HTTPEnabled                            bool
+	RMQEnabled                             bool
 }
 
 type ResourceLinkedList struct {
@@ -383,14 +387,14 @@ func (d AllocationResponseItem) WriteJSON(fwb *bufio.Writer) error {
 
 	return nil
 }
-func WriteFlightsInJSON(fwb *bufio.Writer, flights []FlightResponseItem, userProfile *UserProfile) error {
+func WriteFlightsInJSON(fwb *bufio.Writer, flights []FlightResponseItem, userProfile *UserProfile, statusOnly bool) error {
 	fwb.WriteString(`"Flights":[`)
 
 	for idx, currentNode := range flights {
 		if idx > 0 {
 			fwb.WriteByte(',')
 		}
-		(currentNode.FlightPtr).WriteJSON(fwb, userProfile)
+		(currentNode.FlightPtr).WriteJSON(fwb, userProfile, statusOnly)
 	}
 
 	fwb.WriteByte(']')

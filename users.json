@@ -47,7 +47,9 @@
                     "TrustBadCertificates":true,
                     "PublishChangesRabbitMQConnectionString": "amqp://amsauh:amsauh@localhost:5672/amsauh",
                     "PublishChangesRabbitMQExchange": "Test",
-                    "PublishChangesRabbitMQTopic": "AMSJSON.Notify"
+                    "PublishChangesRabbitMQTopic": "AMSJSON.Notify",
+                    "RMQEnabled":true,
+                    "HTTPEnabled":true
                 }
             ],
             "UserPushSubscriptions": [
@@ -74,7 +76,9 @@
                     "All":true,
                     "PublishStatusRabbitMQConnectionString": "amqp://amsauh:amsauh@localhost:5672/amsauh",
                     "PublishStatusRabbitMQExchange": "Test",
-                    "PublishStatusRabbitMQTopic": "AMSJSON.Status"
+                    "PublishStatusRabbitMQTopic": "AMSJSON.Status",
+                    "RMQEnabled":true,
+                    "HTTPEnabled":true
 
                 }
             ]

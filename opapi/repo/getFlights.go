@@ -78,7 +78,7 @@ func GetRequestedFlightsAPI(c *gin.Context) {
 
 	response, _ := GetRequestedFlightsCommon(apt, direction, airline, flt, from, to, route, "", c, nil)
 
-	fileName, err := writeFlightResponseToFile(response, &userProfile)
+	fileName, err := writeFlightResponseToFile(response, &userProfile, true)
 
 	if err == nil {
 		c.Writer.Header().Set("Content-Type", "application/json")
@@ -426,7 +426,7 @@ NextFlight:
 	return response, nil
 }
 
-func writeFlightResponseToFile(response models.Response, userProfile *models.UserProfile) (fileName string, e error) {
+func writeFlightResponseToFile(response models.Response, userProfile *models.UserProfile, statusOnly bool) (fileName string, e error) {
 
 	file, errs := os.CreateTemp("", "getflighttemp-*.txt")
 	if errs != nil {
@@ -485,7 +485,7 @@ func writeFlightResponseToFile(response models.Response, userProfile *models.Use
 	}
 	fwb.WriteString("],")
 
-	err := models.WriteFlightsInJSON(fwb, response.ResponseFlights, userProfile)
+	err := models.WriteFlightsInJSON(fwb, response.ResponseFlights, userProfile, statusOnly)
 	err2 := fwb.WriteByte('}')
 	err3 := fwb.Flush()
 
