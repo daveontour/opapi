@@ -1,0 +1,35 @@
+name: test
+on:
+  push:
+    branches:
+    - "**"
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+        - ubuntu-latest
+        - macOS-latest
+        - windows-latest
+    steps:
+    - name: setup go
+      uses: actions/setup-go@v1
+      with:
+        go-version: 1.x
+    - name: setup env
+      run: |
+        echo "::set-env name=GOPATH::$(go env GOPATH)"
+        echo "::add-path::$(go env GOPATH)/bin"
+      shell: bash
+    - name: checkout
+      uses: actions/checkout@v1
+      with:
+        fetch-depth: 1
+        path: src/github.com/${{ github.repository }}
+    - name: golint
+      run: |
+        go env
+        go install golang.org/x/lint/golint
+        golint ./...
