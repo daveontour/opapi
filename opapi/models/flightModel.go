@@ -3,7 +3,6 @@ package models
 import (
 	"bufio"
 	"encoding/json"
-	"encoding/xml"
 	"fmt"
 	"strconv"
 	"strings"
@@ -31,42 +30,78 @@ type FlightId struct {
 }
 
 func (d *FlightId) WriteJSON(fwb *bufio.Writer) error {
-	fwb.WriteString("\"FlightId\":{")
-	fwb.WriteString("\"FlightKind\":\"" + d.FlightKind + "\",")
-	fwb.WriteString("\"FlightNumber\":\"" + d.FlightNumber + "\",")
-	fwb.WriteString("\"ScheduledDate\":\"" + string(d.ScheduledDate) + "\"")
-	if d.AirportCode != nil {
-		fwb.WriteString(",\"AirportCode\":{")
-		for idx, apt := range d.AirportCode {
-			if idx > 0 {
-				fwb.WriteString(",")
-			}
-			fwb.WriteString("\"" + apt.CodeContext + "\":\"" + apt.Text + "\"")
-		}
-		fwb.WriteString("}")
-	}
-	if d.AirlineDesignator != nil {
-		fwb.WriteString(",\"AirlineDesignator\":{")
-		for idx, al := range d.AirlineDesignator {
-			if idx > 0 {
-				fwb.WriteString(",")
-			}
-			fwb.WriteString("\"" + al.CodeContext + "\":\"" + al.Text + "\"")
-		}
-		fwb.WriteString("}")
+
+	_, err := fwb.WriteString("\"FlightId\":{" +
+		"\"FlightKind\":\"" + d.FlightKind + "\"," +
+		"\"FlightNumber\":\"" + d.FlightNumber + "\"," +
+		"\"ScheduledDate\":\"" + string(d.ScheduledDate) + "\"" +
+		"}")
+
+	if err != nil {
+		return err
 	}
 
-	fwb.WriteString("}")
+	if d.AirportCode != nil {
+		_, err = fwb.WriteString(",\"AirportCode\":{")
+		if err != nil {
+			return err
+		}
+		for idx, apt := range d.AirportCode {
+			if idx > 0 {
+				_, err = fwb.WriteString(",")
+				if err != nil {
+					return err
+				}
+			}
+			_, err = fwb.WriteString("\"" + apt.CodeContext + "\":\"" + apt.Text + "\"")
+			if err != nil {
+				return err
+			}
+		}
+		_, err = fwb.WriteString("}")
+		if err != nil {
+			return err
+		}
+	}
+	if d.AirlineDesignator != nil {
+		_, err = fwb.WriteString(",\"AirlineDesignator\":{")
+		if err != nil {
+			return err
+		}
+		for idx, al := range d.AirlineDesignator {
+			if idx > 0 {
+				_, err = fwb.WriteString(",")
+				if err != nil {
+					return err
+				}
+			}
+			_, err = fwb.WriteString("\"" + al.CodeContext + "\":\"" + al.Text + "\"")
+			if err != nil {
+				return err
+			}
+		}
+		_, err = fwb.WriteString("}")
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = fwb.WriteString("}")
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 func (d *FlightId) MarshalJSON() ([]byte, error) {
 
 	fwb := strings.Builder{}
-	fwb.WriteString("{")
-	fwb.WriteString("\"FlightKind\":\"" + d.FlightKind + "\",")
-	fwb.WriteString("\"FlightNumber\":\"" + d.FlightNumber + "\",")
-	fwb.WriteString("\"ScheduledDate\":\"" + string(d.ScheduledDate) + "\"")
+	fwb.WriteString("{" +
+		"\"FlightKind\":\"" + d.FlightKind + "\"," +
+		"\"FlightNumber\":\"" + d.FlightNumber + "\"," +
+		"\"ScheduledDate\":\"" + string(d.ScheduledDate) + "\"" +
+		"}")
+
 	if d.AirportCode != nil {
 		fwb.WriteString(",\"AirportCode\":{")
 		for idx, apt := range d.AirportCode {
@@ -101,7 +136,10 @@ type Value struct {
 }
 
 func (d *Value) WriteJSON(fwb *bufio.Writer) error {
-	fwb.WriteString("{\"" + d.PropertyName + "\":\"" + d.Text + "\"}")
+	_, err := fwb.WriteString("{\"" + d.PropertyName + "\":\"" + d.Text + "\"}")
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -112,35 +150,62 @@ type LinkedFlight struct {
 
 func (d *LinkedFlight) WriteJSON(fwb *bufio.Writer) error {
 
-	fwb.WriteString("{")
-
-	fwb.WriteString("\"FlightId\":{")
-	fwb.WriteString("\"FlightKind\":\"" + d.FlightId.FlightKind + "\",")
-	fwb.WriteString("\"FlightNumber\":\"" + d.FlightId.FlightNumber + "\",")
-	fwb.WriteString("\"ScheduledDate\":\"" + string(d.FlightId.ScheduledDate) + "\",")
-	fwb.WriteString("\"AirportCode\":{")
+	_, err := fwb.WriteString("{\"FlightId\":{" +
+		"\"FlightKind\":\"" + d.FlightId.FlightKind + "\"," +
+		"\"FlightNumber\":\"" + d.FlightId.FlightNumber + "\"," +
+		"\"ScheduledDate\":\"" + string(d.FlightId.ScheduledDate) + "\"," +
+		"\"AirportCode\":{")
+	if err != nil {
+		return err
+	}
 	for idx, apt := range d.FlightId.AirportCode {
 		if idx > 0 {
-			fwb.WriteString(",")
+			_, err = fwb.WriteString(",")
+			if err != nil {
+				return err
+			}
 		}
-		fwb.WriteString("\"" + apt.CodeContext + "\":\"" + apt.Text + "\"")
+		_, err = fwb.WriteString("\"" + apt.CodeContext + "\":\"" + apt.Text + "\"")
+		if err != nil {
+			return err
+		}
 	}
-	fwb.WriteString("},")
+	_, err = fwb.WriteString("},")
+	if err != nil {
+		return err
+	}
 
-	fwb.WriteString("\"AirlineDesignator\":{")
+	_, err = fwb.WriteString("\"AirlineDesignator\":{")
+	if err != nil {
+		return err
+	}
 	for idx, al := range d.FlightId.AirlineDesignator {
 		if idx > 0 {
-			fwb.WriteString(",")
+			_, err = fwb.WriteString(",")
+			if err != nil {
+				return err
+			}
 		}
-		fwb.WriteString("\"" + al.CodeContext + "\":\"" + al.Text + "\"")
+		_, err = fwb.WriteString("\"" + al.CodeContext + "\":\"" + al.Text + "\"")
+		if err != nil {
+			return err
+		}
 	}
-	fwb.WriteString("}")
-	fwb.WriteString("},")
+	_, err = fwb.WriteString("}" +
+		"}," +
+		"\"Values\":")
+	if err != nil {
+		return err
+	}
+	err = MarshalValuesArrayJSON(d.Value, fwb)
+	if err != nil {
+		return err
+	}
 
-	fwb.WriteString("\"Values\":")
-	MarshalValuesArrayJSON(d.Value, fwb)
-
-	fwb.WriteString("}")
+	_, err = fwb.WriteString("}")
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -156,20 +221,38 @@ type AircraftTypeId struct {
 
 func (tid *AircraftTypeId) WriteJSON(fwb *bufio.Writer) error {
 
-	fwb.WriteString("{")
+	_, err := fwb.WriteString("{")
+	if err != nil {
+		return err
+	}
 
 	if tid.AircraftTypeCode != nil {
-		fwb.WriteString("\"AircraftTypeCode\":{")
+		_, err = fwb.WriteString("\"AircraftTypeCode\":{")
+		if err != nil {
+			return err
+		}
 
 		for idx, tc := range tid.AircraftTypeCode {
 			if idx > 0 {
-				fwb.WriteString(",")
+				_, err = fwb.WriteString(",")
+				if err != nil {
+					return err
+				}
 			}
-			fwb.WriteString("\"" + tc.CodeContext + "\":\"" + tc.Text + "\"")
+			_, err = fwb.WriteString("\"" + tc.CodeContext + "\":\"" + tc.Text + "\"")
+			if err != nil {
+				return err
+			}
 		}
-		fwb.WriteString("}")
+		_, err = fwb.WriteString("}")
+		if err != nil {
+			return err
+		}
 	}
-	fwb.WriteString("}")
+	_, err = fwb.WriteString("}")
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -180,17 +263,37 @@ type AircraftType struct {
 
 func (t *AircraftType) WriteJSON(fwb *bufio.Writer) error {
 
-	fwb.WriteString("{")
-
-	fwb.WriteString("\"AircraftTypeId\":")
-	t.AircraftTypeId.WriteJSON(fwb)
+	_, err := fwb.WriteString("{")
+	if err != nil {
+		return err
+	}
+	_, err = fwb.WriteString("\"AircraftTypeId\":")
+	if err != nil {
+		return err
+	}
+	err = t.AircraftTypeId.WriteJSON(fwb)
+	if err != nil {
+		return err
+	}
 	if len(t.Value) > 0 {
-		fwb.WriteString(",")
+		_, err = fwb.WriteString(",")
+		if err != nil {
+			return err
+		}
 	}
 
-	fwb.WriteString("\"Values\":")
-	MarshalValuesArrayJSON(t.Value, fwb)
-	fwb.WriteString("}")
+	_, err = fwb.WriteString("\"Values\":")
+	if err != nil {
+		return err
+	}
+	err = MarshalValuesArrayJSON(t.Value, fwb)
+	if err != nil {
+		return err
+	}
+	_, err = fwb.WriteString("}")
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -205,29 +308,48 @@ type ViaPoints struct {
 
 func (r *ViaPoints) WriteJSON(fwb *bufio.Writer) error {
 
-	fwb.WriteString("[")
+	_, err := fwb.WriteString("[")
+	if err != nil {
+		return err
+	}
 
 	for idx, rvp := range r.RouteViaPoint {
 		if idx > 0 {
-			fwb.WriteString(",")
+			_, err = fwb.WriteString(",")
+			if err != nil {
+				return err
+			}
 		}
-		fwb.WriteString("{")
-
-		fwb.WriteString("\"SequenceNumber\":\"" + rvp.SequenceNumber + "\",")
-
-		fwb.WriteString("\"AirportCode\":{")
+		_, err = fwb.WriteString("{" +
+			"\"SequenceNumber\":\"" + rvp.SequenceNumber + "\"," +
+			"\"AirportCode\":{")
+		if err != nil {
+			return err
+		}
 
 		for idx2, apt := range rvp.AirportCode {
 			if idx2 > 0 {
-				fwb.WriteString(",")
+				_, err = fwb.WriteString(",")
+				if err != nil {
+					return err
+				}
 			}
-			fwb.WriteString("\"" + apt.CodeContext + "\":\"" + apt.Text + "\"")
+			_, err = fwb.WriteString("\"" + apt.CodeContext + "\":\"" + apt.Text + "\"")
+			if err != nil {
+				return err
+			}
 		}
 
-		fwb.WriteString("}}")
+		_, err = fwb.WriteString("}}")
+		if err != nil {
+			return err
+		}
 	}
 
-	fwb.WriteString("]")
+	_, err = fwb.WriteString("]")
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -236,29 +358,48 @@ func (r *ViaPoints) MarshalJSON() ([]byte, error) {
 
 	fwb := strings.Builder{}
 
-	fwb.WriteString("[")
+	_, err := fwb.WriteString("[")
+	if err != nil {
+		return nil, err
+	}
 
 	for idx, rvp := range r.RouteViaPoint {
 		if idx > 0 {
-			fwb.WriteString(",")
+			_, err = fwb.WriteString(",")
+			if err != nil {
+				return nil, err
+			}
 		}
-		fwb.WriteString("{")
-
-		fwb.WriteString("\"SequenceNumber\":\"" + rvp.SequenceNumber + "\",")
-
-		fwb.WriteString("\"AirportCode\":{")
+		_, err = fwb.WriteString("{" +
+			"\"SequenceNumber\":\"" + rvp.SequenceNumber + "\"," +
+			"\"AirportCode\":{")
+		if err != nil {
+			return nil, err
+		}
 
 		for idx2, apt := range rvp.AirportCode {
 			if idx2 > 0 {
-				fwb.WriteString(",")
+				_, err = fwb.WriteString(",")
+				if err != nil {
+					return nil, err
+				}
 			}
-			fwb.WriteString("\"" + apt.CodeContext + "\":\"" + apt.Text + "\"")
+			_, err = fwb.WriteString("\"" + apt.CodeContext + "\":\"" + apt.Text + "\"")
+			if err != nil {
+				return nil, err
+			}
 		}
 
-		fwb.WriteString("}}")
+		_, err = fwb.WriteString("}}")
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	fwb.WriteString("]")
+	_, err = fwb.WriteString("]")
+	if err != nil {
+		return nil, err
+	}
 
 	var sendText = fwb.String()
 
@@ -272,13 +413,28 @@ type Route struct {
 
 func (r *Route) WriteJSON(fwb *bufio.Writer) error {
 
-	fwb.WriteString("{")
-	if r.CustomsType != "" {
-		fwb.WriteString("\"CustomType\":\"" + r.CustomsType + "\",")
+	_, err := fwb.WriteString("{")
+	if err != nil {
+		return err
 	}
-	fwb.WriteString("\"ViaPoints\":")
-	r.ViaPoints.WriteJSON(fwb)
-	fwb.WriteString("}")
+	if r.CustomsType != "" {
+		_, err = fwb.WriteString("\"CustomType\":\"" + r.CustomsType + "\",")
+		if err != nil {
+			return err
+		}
+	}
+	_, err = fwb.WriteString("\"ViaPoints\":")
+	if err != nil {
+		return err
+	}
+	err = r.ViaPoints.WriteJSON(fwb)
+	if err != nil {
+		return err
+	}
+	_, err = fwb.WriteString("}")
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -289,103 +445,177 @@ type TableValue struct {
 
 func (ss *StandSlots) WriteJSON(fwb *bufio.Writer) error {
 
-	fwb.WriteString("[")
+	_, err := fwb.WriteString("[")
+	if err != nil {
+		return err
+	}
 
 	for idx2, s := range ss.StandSlot {
 
 		if idx2 > 0 {
-			fwb.WriteString(",")
+			_, err = fwb.WriteString(",")
+			if err != nil {
+				return err
+			}
 		}
-		fwb.WriteString("{")
+		_, err = fwb.WriteString("{")
+		if err != nil {
+			return err
+		}
 		for idx3, v := range s.Value {
 			if idx3 > 0 {
-				fwb.WriteString(",")
+				_, err = fwb.WriteString(",")
+				if err != nil {
+					return err
+				}
 			}
-			fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+			_, err = fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+			if err != nil {
+				return err
+			}
 		}
 		for _, v := range s.Stand.Value {
-			fwb.WriteString(",")
-			fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+			_, err = fwb.WriteString(",\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+			if err != nil {
+				return err
+			}
 		}
 
 		for _, v := range s.Stand.Area.Value {
-			fwb.WriteString(",")
-			fwb.WriteString("\"Area" + v.PropertyName + "\":\"" + v.Text + "\"")
+			_, err = fwb.WriteString(",\"Area" + v.PropertyName + "\":\"" + v.Text + "\"")
+			if err != nil {
+				return err
+			}
 		}
-		fwb.WriteString("}")
+		_, err = fwb.WriteString("}")
+		if err != nil {
+			return err
+		}
 
 	}
 
-	fwb.WriteString("]")
+	_, err = fwb.WriteString("]")
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
 
 func (ss *CarouselSlots) WriteJSON(fwb *bufio.Writer) error {
 
-	fwb.WriteString("[")
+	_, err := fwb.WriteString("[")
+	if err != nil {
+		return err
+	}
 
 	for idx2, s := range ss.CarouselSlot {
 
 		if idx2 > 0 {
-			fwb.WriteString(",")
+			_, err = fwb.WriteString(",")
+			if err != nil {
+				return err
+			}
 		}
-		fwb.WriteString("{")
+		_, err = fwb.WriteString("{")
+		if err != nil {
+			return err
+		}
 		for idx3, v := range s.Value {
 			if idx3 > 0 {
-				fwb.WriteString(",")
+				_, err = fwb.WriteString(",")
+				if err != nil {
+					return err
+				}
 			}
-			fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+			_, err = fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+			if err != nil {
+				return err
+			}
 		}
 		for _, v := range s.Carousel.Value {
-			fwb.WriteString(",")
-			fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+			_, err = fwb.WriteString(",\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+			if err != nil {
+				return err
+			}
 		}
 
 		for _, v := range s.Carousel.Area.Value {
-			fwb.WriteString(",")
-			fwb.WriteString("\"Area" + v.PropertyName + "\":\"" + v.Text + "\"")
+			_, err = fwb.WriteString(",\"Area" + v.PropertyName + "\":\"" + v.Text + "\"")
+			if err != nil {
+				return err
+			}
 		}
-		fwb.WriteString("}")
+		_, err = fwb.WriteString("}")
+		if err != nil {
+			return err
+		}
 
 	}
 
-	fwb.WriteString("]")
+	_, err = fwb.WriteString("]")
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
 
 func (ss *GateSlots) WriteJSON(fwb *bufio.Writer) error {
 
-	fwb.WriteString("[")
-
+	_, err := fwb.WriteString("[")
+	if err != nil {
+		return err
+	}
 	for idx2, s := range ss.GateSlot {
 
 		if idx2 > 0 {
-			fwb.WriteString(",")
+			_, err = fwb.WriteString(",")
+			if err != nil {
+				return err
+			}
 		}
-		fwb.WriteString("{")
+		_, err = fwb.WriteString("{")
+		if err != nil {
+			return err
+		}
 		for idx3, v := range s.Value {
 			if idx3 > 0 {
-				fwb.WriteString(",")
+				_, err = fwb.WriteString(",")
+				if err != nil {
+					return err
+				}
 			}
-			fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+			_, err = fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+			if err != nil {
+				return err
+			}
 		}
 		for _, v := range s.Gate.Value {
-			fwb.WriteString(",")
-			fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+			_, err = fwb.WriteString(",\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+			if err != nil {
+				return err
+			}
 		}
 
 		for _, v := range s.Gate.Area.Value {
-			fwb.WriteString(",")
-			fwb.WriteString("\"Area" + v.PropertyName + "\":\"" + v.Text + "\"")
+			_, err = fwb.WriteString(",\"Area" + v.PropertyName + "\":\"" + v.Text + "\"")
+			if err != nil {
+				return err
+			}
 		}
 
-		fwb.WriteString("}")
+		_, err = fwb.WriteString("}")
+		if err != nil {
+			return err
+		}
 
 	}
 
-	fwb.WriteString("]")
+	_, err = fwb.WriteString("]")
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -393,34 +623,57 @@ func (ss *GateSlots) WriteJSON(fwb *bufio.Writer) error {
 func (ss *GateSlots) MarshalJSON() ([]byte, error) {
 
 	fwb := strings.Builder{}
-	fwb.WriteString("{")
+
+	_, err := fwb.WriteString("{")
+	if err != nil {
+		return nil, err
+	}
 	for idx2, s := range ss.GateSlot {
 
 		if idx2 > 0 {
-			fwb.WriteString(",")
+			_, err = fwb.WriteString(",")
+			if err != nil {
+				return nil, err
+			}
 		}
 		fwb.WriteString("{")
 		for idx3, v := range s.Value {
 			if idx3 > 0 {
-				fwb.WriteString(",")
+				_, err = fwb.WriteString(",")
+				if err != nil {
+					return nil, err
+				}
 			}
-			fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+			_, err = fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+			if err != nil {
+				return nil, err
+			}
 		}
 		for _, v := range s.Gate.Value {
-			fwb.WriteString(",")
-			fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+			_, err = fwb.WriteString(",\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		for _, v := range s.Gate.Area.Value {
-			fwb.WriteString(",")
-			fwb.WriteString("\"Area" + v.PropertyName + "\":\"" + v.Text + "\"")
+			_, err = fwb.WriteString(",\"Area" + v.PropertyName + "\":\"" + v.Text + "\"")
+			if err != nil {
+				return nil, err
+			}
 		}
 
-		fwb.WriteString("}")
+		_, err = fwb.WriteString("}")
+		if err != nil {
+			return nil, err
+		}
 
 	}
 
-	fwb.WriteString("]")
+	_, err = fwb.WriteString("]")
+	if err != nil {
+		return nil, err
+	}
 
 	var sendText = fwb.String()
 
@@ -429,32 +682,57 @@ func (ss *GateSlots) MarshalJSON() ([]byte, error) {
 
 func (ss *CheckInSlots) WriteJSON(fwb *bufio.Writer) error {
 
-	fwb.WriteString("[")
+	_, err := fwb.WriteString("[")
+	if err != nil {
+		return err
+	}
 
 	for idx2, s := range ss.CheckInSlot {
 
 		if idx2 > 0 {
-			fwb.WriteString(",")
+			_, err = fwb.WriteString(",")
+			if err != nil {
+				return err
+			}
 		}
-		fwb.WriteString("{")
+		_, err = fwb.WriteString("{")
+		if err != nil {
+			return err
+		}
 		for idx3, v := range s.Value {
 			if idx3 > 0 {
-				fwb.WriteString(",")
+				_, err = fwb.WriteString(",")
+				if err != nil {
+					return err
+				}
 			}
-			fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+			_, err = fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+			if err != nil {
+				return err
+			}
 		}
 		for _, v := range s.CheckIn.Value {
-			fwb.WriteString(",")
-			fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+			_, err = fwb.WriteString(",\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+			if err != nil {
+				return err
+			}
 		}
 		for _, v := range s.CheckIn.Area.Value {
-			fwb.WriteString(",")
-			fwb.WriteString("\"Area" + v.PropertyName + "\":\"" + v.Text + "\"")
+			_, err = fwb.WriteString(",\"Area" + v.PropertyName + "\":\"" + v.Text + "\"")
+			if err != nil {
+				return err
+			}
 		}
-		fwb.WriteString("}")
+		_, err = fwb.WriteString("}")
+		if err != nil {
+			return err
+		}
 	}
 
-	fwb.WriteString("]")
+	_, err = fwb.WriteString("]")
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -462,23 +740,39 @@ func (ss *CheckInSlots) WriteJSON(fwb *bufio.Writer) error {
 func (s *CheckInSlot) MarshalJSON() ([]byte, error) {
 
 	fwb := strings.Builder{}
-	fwb.WriteString("{")
+	_, err := fwb.WriteString("{")
+	if err != nil {
+		return nil, err
+	}
 
 	for idx3, v := range s.Value {
 		if idx3 > 0 {
-			fwb.WriteString(",")
+			_, err = fwb.WriteString(",")
+			if err != nil {
+				return nil, err
+			}
 		}
-		fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+		_, err = fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+		if err != nil {
+			return nil, err
+		}
 	}
 	for _, v := range s.CheckIn.Value {
-		fwb.WriteString(",")
-		fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+		_, err = fwb.WriteString(",\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+		if err != nil {
+			return nil, err
+		}
 	}
 	for _, v := range s.CheckIn.Area.Value {
-		fwb.WriteString(",")
-		fwb.WriteString("\"Area" + v.PropertyName + "\":\"" + v.Text + "\"")
+		_, err = fwb.WriteString(",\"Area" + v.PropertyName + "\":\"" + v.Text + "\"")
+		if err != nil {
+			return nil, err
+		}
 	}
-	fwb.WriteString("}")
+	_, err = fwb.WriteString("}")
+	if err != nil {
+		return nil, err
+	}
 
 	var sendText = fwb.String()
 
@@ -486,33 +780,60 @@ func (s *CheckInSlot) MarshalJSON() ([]byte, error) {
 }
 func (ss *ChuteSlots) WriteJSON(fwb *bufio.Writer) error {
 
-	fwb.WriteString("[")
+	_, err := fwb.WriteString("[")
+	if err != nil {
+		return err
+	}
 
 	for idx2, s := range ss.ChuteSlot {
 
 		if idx2 > 0 {
-			fwb.WriteString(",")
+			_, err = fwb.WriteString(",")
+			if err != nil {
+				return err
+			}
+
 		}
-		fwb.WriteString("{")
+		_, err = fwb.WriteString("{")
+		if err != nil {
+			return err
+		}
 		for idx3, v := range s.Value {
 			if idx3 > 0 {
-				fwb.WriteString(",")
+				_, err = fwb.WriteString(",")
+				if err != nil {
+					return err
+				}
+
 			}
-			fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+			_, err = fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+			if err != nil {
+				return err
+			}
 		}
 		for _, v := range s.Chute.Value {
-			fwb.WriteString(",")
-			fwb.WriteString("\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+			_, err = fwb.WriteString(",\"" + v.PropertyName + "\":\"" + v.Text + "\"")
+			if err != nil {
+				return err
+			}
 		}
 		for _, v := range s.Chute.Area.Value {
-			fwb.WriteString(",")
-			fwb.WriteString("\"Area" + v.PropertyName + "\":\"" + v.Text + "\"")
+			_, err = fwb.WriteString(",\"Area" + v.PropertyName + "\":\"" + v.Text + "\"")
+			if err != nil {
+				return err
+			}
 		}
-		fwb.WriteString("}")
+		_, err = fwb.WriteString("}")
+		if err != nil {
+			return err
+		}
 
 	}
 
-	fwb.WriteString("]")
+	_, err = fwb.WriteString("]")
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -526,8 +847,10 @@ type Aircraft struct {
 
 func (d *Aircraft) WriteJSON(fwb *bufio.Writer) error {
 
-	fwb.WriteString("{\"AircraftId\": {\"Registration\": \"" + d.AircraftId.Registration + "\"}}")
-
+	_, err := fwb.WriteString("{\"AircraftId\": {\"Registration\": \"" + d.AircraftId.Registration + "\"}}")
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -546,21 +869,35 @@ type FlightState struct {
 	ChuteSlots    ChuteSlots    `xml:"ChuteSlots" json:"ChuteSlots,omitempty"`
 }
 
-func MarshalValuesArrayJSON(vs []Value, fwb *bufio.Writer) {
+func MarshalValuesArrayJSON(vs []Value, fwb *bufio.Writer) (err error) {
 
-	fwb.WriteString("{")
+	_, err = fwb.WriteString("{")
+	if err != nil {
+		return
+	}
 
 	set := false
 	for _, f := range vs {
 		if set {
-			fwb.WriteString(",")
+			_, err = fwb.WriteString(",")
+			if err != nil {
+				return
+			}
 		}
 		set = true
-		fwb.WriteString("\"" + f.PropertyName + "\":\"" + strings.Replace(f.Text, "\n", "", -1) + "\"")
+		_, err = fwb.WriteString("\"" + f.PropertyName + "\":\"" + strings.Replace(f.Text, "\n", "", -1) + "\"")
+		if err != nil {
+			return
+		}
 
 	}
 
-	fwb.WriteString("}")
+	_, err = fwb.WriteString("}")
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func contains(elems []string, v string) bool {
@@ -572,9 +909,12 @@ func contains(elems []string, v string) bool {
 	return false
 }
 
-func MarshalCustomFieldArrayJSON(vs []Value, fwb *bufio.Writer, userProfile *UserProfile) {
+func MarshalCustomFieldArrayJSON(vs []Value, fwb *bufio.Writer, userProfile *UserProfile) (err error) {
 
-	fwb.WriteString("{")
+	_, err = fwb.WriteString("{")
+	if err != nil {
+		return
+	}
 
 	if userProfile != nil {
 		set := false
@@ -584,64 +924,117 @@ func MarshalCustomFieldArrayJSON(vs []Value, fwb *bufio.Writer, userProfile *Use
 				continue
 			}
 			if set {
-				fwb.WriteString(",")
+				_, err = fwb.WriteString(",")
+				if err != nil {
+					return
+				}
 			}
 			set = true
-			fwb.WriteString("\"" + f.PropertyName + "\":\"" + strings.Replace(f.Text, "\n", "", -1) + "\"")
+			_, err = fwb.WriteString("\"" + f.PropertyName + "\":\"" + strings.Replace(f.Text, "\n", "", -1) + "\"")
+			if err != nil {
+				return
+			}
 		}
 	}
 
-	fwb.WriteString("}")
+	_, err = fwb.WriteString("}")
+	if err != nil {
+		return
+	}
+
+	return nil
 }
 func (d *FlightState) WriteJSON(fwb *bufio.Writer, userProfile *UserProfile) error {
 
-	fwb.WriteString("{")
-
-	fwb.WriteString("\"ScheduledTime\":\"" + d.ScheduledTime + "\",")
-
-	fwb.WriteString("\"LinkedFlight\":")
-	d.LinkedFlight.WriteJSON(fwb)
-	fwb.WriteString(",")
-
-	fwb.WriteString("\"AircraftType\":")
-	d.AircraftType.WriteJSON(fwb)
-	fwb.WriteString(",")
-
-	fwb.WriteString("\"Aircraft\":")
-	d.Aircraft.WriteJSON(fwb)
-	fwb.WriteString(",")
-
-	fwb.WriteString("\"Route\":")
-	d.Route.WriteJSON(fwb)
-	fwb.WriteString(",")
-
-	fwb.WriteString("\"Values\":")
-	MarshalCustomFieldArrayJSON(d.Values, fwb, userProfile)
-	fwb.WriteString(",")
-
-	fwb.WriteString("\"StandSlots\":")
-	d.StandSlots.WriteJSON(fwb)
-	fwb.WriteString(",")
-
-	fwb.WriteString("\"CarouselSlots\":")
-	d.CarouselSlots.WriteJSON(fwb)
-	fwb.WriteString(",")
-
-	fwb.WriteString("\"GateSlots\":")
-	d.GateSlots.WriteJSON(fwb)
-	fwb.WriteString(",")
-
-	fwb.WriteString("\"CheckInSlots\":")
-	d.CheckInSlots.WriteJSON(fwb)
-	fwb.WriteString(",")
-
-	fwb.WriteString("\"ChuteSlots\":")
-	d.ChuteSlots.WriteJSON(fwb)
-	//sb.WriteString(",")
-
-	//fwb.WriteString("}")
-
-	fwb.Flush()
+	_, err := fwb.WriteString("{" +
+		"\"ScheduledTime\":\"" + d.ScheduledTime + "\"," +
+		"\"LinkedFlight\":")
+	if err != nil {
+		return err
+	}
+	err = d.LinkedFlight.WriteJSON(fwb)
+	if err != nil {
+		return err
+	}
+	_, err = fwb.WriteString(",\"AircraftType\":")
+	if err != nil {
+		return err
+	}
+	err = d.AircraftType.WriteJSON(fwb)
+	if err != nil {
+		return err
+	}
+	_, err = fwb.WriteString(",\"Aircraft\":")
+	if err != nil {
+		return err
+	}
+	err = d.Aircraft.WriteJSON(fwb)
+	if err != nil {
+		return err
+	}
+	_, err = fwb.WriteString(",\"Route\":")
+	if err != nil {
+		return err
+	}
+	err = d.Route.WriteJSON(fwb)
+	if err != nil {
+		return err
+	}
+	_, err = fwb.WriteString(",\"Values\":")
+	if err != nil {
+		return err
+	}
+	err = MarshalCustomFieldArrayJSON(d.Values, fwb, userProfile)
+	if err != nil {
+		return err
+	}
+	_, err = fwb.WriteString(",\"StandSlots\":")
+	if err != nil {
+		return err
+	}
+	err = d.StandSlots.WriteJSON(fwb)
+	if err != nil {
+		return err
+	}
+	_, err = fwb.WriteString(",\"CarouselSlots\":")
+	if err != nil {
+		return err
+	}
+	if err != nil {
+		return err
+	}
+	err = d.CarouselSlots.WriteJSON(fwb)
+	if err != nil {
+		return err
+	}
+	_, err = fwb.WriteString(",\"GateSlots\":")
+	if err != nil {
+		return err
+	}
+	err = d.GateSlots.WriteJSON(fwb)
+	if err != nil {
+		return err
+	}
+	_, err = fwb.WriteString("\"CheckInSlots\":")
+	if err != nil {
+		return err
+	}
+	err = d.CheckInSlots.WriteJSON(fwb)
+	if err != nil {
+		return err
+	}
+	_, err = fwb.WriteString(",\"ChuteSlots\":")
+	if err != nil {
+		return err
+	}
+	err = d.ChuteSlots.WriteJSON(fwb)
+	if err != nil {
+		return err
+	}
+	err = fwb.Flush()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1095,37 +1488,71 @@ type Flight struct {
 
 func (d *Flight) WriteJSON(fwb *bufio.Writer, userProfile *UserProfile, statusOnly bool) error {
 
-	fwb.WriteString("{")
+	_, err := fwb.WriteString("{")
+	if err != nil {
+		return err
+	}
 
 	if d.Action != "" {
-		fwb.WriteString(`"Action":"` + d.Action + `",`)
+		_, err = fwb.WriteString(`"Action":"` + d.Action + `",`)
+		if err != nil {
+			return err
+		}
 	}
-	d.FlightId.WriteJSON(fwb)
-	fwb.WriteString(",")
-
-	fwb.WriteString(`"FlightState":`)
-	d.FlightState.WriteJSON(fwb, userProfile)
+	err = d.FlightId.WriteJSON(fwb)
+	if err != nil {
+		return err
+	}
+	_, err = fwb.WriteString(`,"FlightState":`)
+	if err != nil {
+		return err
+	}
+	err = d.FlightState.WriteJSON(fwb, userProfile)
+	if err != nil {
+		return err
+	}
 
 	if statusOnly {
-		fwb.WriteString("}}")
+		_, err = fwb.WriteString("}}")
+		if err != nil {
+			return err
+		}
 	} else {
 		// Using the built in JSON serialiser for the Changes because I'm too lazy to write a custom serilaizer
 		flightChanges, _ := json.Marshal(d.FlightChanges)
-		fwb.WriteString("},\n\"Changes\":")
-		fwb.Write(flightChanges)
-		fwb.WriteString(",\n\"ValueChanges\":[")
+		_, err = fwb.WriteString("},\n\"Changes\":")
+		if err != nil {
+			return err
+		}
+		_, err = fwb.Write(flightChanges)
+		if err != nil {
+			return err
+		}
+		_, err = fwb.WriteString(",\n\"ValueChanges\":[")
+		if err != nil {
+			return err
+		}
 		f := false
 		for idx, c := range d.FlightChanges.Changes {
 			if contains(userProfile.AllowedCustomFields, c.PropertyName) || contains(userProfile.AllowedCustomFields, "*") {
 				if idx > 0 && f {
-					fwb.WriteString(",")
+					_, err = fwb.WriteString(",")
+					if err != nil {
+						return err
+					}
 				}
 				f = true
-				fwb.WriteString("{\"PropertyName\":\"" + c.PropertyName + "\", \"OldValue\":\"" + c.OldValue + "\",\"NewValue\":\"" + c.NewValue + "\"}")
+				_, err = fwb.WriteString("{\"PropertyName\":\"" + c.PropertyName + "\", \"OldValue\":\"" + c.OldValue + "\",\"NewValue\":\"" + c.NewValue + "\"}")
+				if err != nil {
+					return err
+				}
 			}
 		}
 
-		fwb.WriteString("]}")
+		_, err = fwb.WriteString("]}")
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -1210,14 +1637,6 @@ type ChuteSlot struct {
 }
 type ChuteSlots struct {
 	ChuteSlot []ChuteSlot `xml:"ChuteSlot" json:"ChuteSlot,omitempty"`
-}
-
-func (fs Flights) DuplicateFlights() Flights {
-
-	x, _ := xml.Marshal(fs)
-	var flights Flights
-	xml.Unmarshal(x, &flights)
-	return flights
 }
 
 type Envelope struct {

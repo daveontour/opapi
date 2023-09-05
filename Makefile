@@ -1,6 +1,7 @@
 DESTDIR := C:\Users\dave_\Desktop\opapi
 
 build:
+	-C:\Users\dave_\go/bin/golangci-lint.exe  run
 	go build -o $(DESTDIR)\opapi.exe .\opapi\main
 	go build -o $(DESTDIR)\opapiseeder.exe .\opapiseeder\main
 	go build -o $(DESTDIR)\webhookclient.exe .\webhookclient\main

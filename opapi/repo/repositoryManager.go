@@ -86,8 +86,14 @@ func InitRepositories() {
 func ReInitAirport(aptCode string) {
 
 	var repos models.Repositories
-	globals.AirportsViper.ReadInConfig()
-	globals.AirportsViper.Unmarshal(&repos)
+	err := globals.AirportsViper.ReadInConfig()
+	if err != nil {
+		globals.Logger.Error(fmt.Errorf("Error reading Airports config file %s", err))
+	}
+	err = globals.AirportsViper.Unmarshal(&repos)
+	if err != nil {
+		globals.Logger.Error(fmt.Errorf("Error reading Airports config file %s", err))
+	}
 
 	for _, v := range repos.Repositories {
 		if v.AMSAirport != aptCode {
@@ -152,24 +158,44 @@ func populateResourceMaps(airportCode string) {
 	// Retrieve the available resources
 
 	var checkIns models.FixedResources
-	xml.Unmarshal(getResource(airportCode, "CheckIns"), &checkIns)
-	(*repo).CheckInList.ReplaceOrAddNodes(checkIns.Values)
+	err := xml.Unmarshal(getResource(airportCode, "CheckIns"), &checkIns)
+	if err != nil {
+		globals.Logger.Error(fmt.Errorf("Error UnMarshalling Resoures %s", err))
+		return
+	}
+	repo.CheckInList.ReplaceOrAddNodes(checkIns.Values)
 
 	var stands models.FixedResources
-	xml.Unmarshal(getResource(airportCode, "Stands"), &stands)
-	(*repo).StandList.ReplaceOrAddNodes(stands.Values)
+	err = xml.Unmarshal(getResource(airportCode, "Stands"), &stands)
+	if err != nil {
+		globals.Logger.Error(fmt.Errorf("Error UnMarshalling Resoures %s", err))
+		return
+	}
+	repo.StandList.ReplaceOrAddNodes(stands.Values)
 
 	var gates models.FixedResources
-	xml.Unmarshal(getResource(airportCode, "Gates"), &gates)
-	(*repo).GateList.ReplaceOrAddNodes(gates.Values)
+	err = xml.Unmarshal(getResource(airportCode, "Gates"), &gates)
+	if err != nil {
+		globals.Logger.Error(fmt.Errorf("Error UnMarshalling Resoures %s", err))
+		return
+	}
+	repo.GateList.ReplaceOrAddNodes(gates.Values)
 
 	var carousels models.FixedResources
-	xml.Unmarshal(getResource(airportCode, "Carousels"), &carousels)
-	(*repo).CarouselList.ReplaceOrAddNodes(carousels.Values)
+	err = xml.Unmarshal(getResource(airportCode, "Carousels"), &carousels)
+	if err != nil {
+		globals.Logger.Error(fmt.Errorf("Error UnMarshalling Resoures %s", err))
+		return
+	}
+	repo.CarouselList.ReplaceOrAddNodes(carousels.Values)
 
 	var chutes models.FixedResources
-	xml.Unmarshal(getResource(airportCode, "Chutes"), &chutes)
-	(*repo).ChuteList.ReplaceOrAddNodes(chutes.Values)
+	err = xml.Unmarshal(getResource(airportCode, "Chutes"), &chutes)
+	if err != nil {
+		globals.Logger.Error(fmt.Errorf("Error UnMarshalling Resoures %s", err))
+		return
+	}
+	repo.ChuteList.ReplaceOrAddNodes(chutes.Values)
 
 	globals.Logger.Info(fmt.Sprintf("Completed Populating Resource Maps for %s", airportCode))
 }
@@ -362,13 +388,21 @@ func scheduleUpdates(airportCode string) {
 	m := globals.ConfigViper.GetString("ScheduleUpdateJobIntervalInHours")
 	n, err := strconv.Atoi(m)
 	if err != nil {
-		s.Every(n).Hours().StartAt(startTime).Do(func() { incrementalUpdateRepository(airportCode) })
+		_, err := s.Every(n).Hours().StartAt(startTime).Do(func() { incrementalUpdateRepository(airportCode) })
+		if err != nil {
+			globals.Logger.Error(fmt.Errorf("Error scheduling repository update %s", err))
+		}
 	}
 
 	m = globals.ConfigViper.GetString("ScheduleUpdateJobIntervalInMinutes")
 	n, err = strconv.Atoi(m)
 	if n != -1 && err == nil {
-		s.Every(n).Minutes().Do(func() { incrementalUpdateRepository(airportCode) })
+		_, err = s.Every(n).Minutes().Do(func() { incrementalUpdateRepository(airportCode) })
+		if err != nil {
+			globals.Logger.Error(fmt.Errorf("Error scheduling repository update %s", err))
+		}
+	} else {
+		globals.Logger.Error("Incorrect format for update interval minutes")
 	}
 
 	globals.Logger.Info(fmt.Sprintf("Regular updates of the repository have been scheduled at %s for every %v hours", startTimeStr, globals.ConfigViper.GetString("ScheduleUpdateJobIntervalInHours")))
@@ -402,7 +436,10 @@ func updateRepository(airportCode string) {
 
 	for min := GetRepo(airportCode).FlightSDOWindowMinimumInDaysFromNow; min <= GetRepo(airportCode).FlightSDOWindowMaximumInDaysFromNow; min += chunkSize {
 		var envel models.Envelope
-		xml.Unmarshal(getFlights(airportCode, min, min+chunkSize), &envel)
+		err := xml.Unmarshal(getFlights(airportCode, min, min+chunkSize), &envel)
+		if err != nil {
+			globals.Logger.Error(fmt.Errorf("Error in update repository %s", err))
+		}
 
 		for _, flight := range envel.Body.GetFlightsResponse.GetFlightsResult.WebServiceResult.ApiResponse.Data.Flights.Flight {
 			flight.LastUpdate = time.Now()
@@ -421,12 +458,19 @@ func updateRepository(airportCode string) {
 
 	fmt.Printf("Got flights set from %s to %s\n", from, to)
 
-	(*repo).UpdateLowerLimit(time.Date(from.Year(), from.Month(), from.Day(), 0, 0, 0, 0, from.Location()))
-	(*repo).UpdateUpperLimit(time.Date(to.Year(), to.Month(), to.Day(), 0, 0, 0, 0, to.Location()))
+	repo.UpdateLowerLimit(time.Date(from.Year(), from.Month(), from.Day(), 0, 0, 0, 0, from.Location()))
+	repo.UpdateUpperLimit(time.Date(to.Year(), to.Month(), to.Day(), 0, 0, 0, 0, to.Location()))
 
 	cleanRepository(from, airportCode)
 }
 func incrementalUpdateRepository(airportCode string) {
+
+	defer func() {
+		if err := recover(); err != nil {
+			globals.Logger.Panic("Panic occerreed in repositoryManager.incrementalUpdateRepository")
+			globals.Logger.Panic("panic occurred:", err)
+		}
+	}()
 
 	fmt.Println("Incremental Load")
 	defer globals.ExeTime(fmt.Sprintf("Updated Repository for %s", airportCode))()
@@ -446,13 +490,17 @@ func incrementalUpdateRepository(airportCode string) {
 	// For this incremenmtal refresh, set the minimum date to 2 days before the current maximum
 	for min := GetRepo(airportCode).FlightSDOWindowMaximumInDaysFromNow - 2; min <= GetRepo(airportCode).FlightSDOWindowMaximumInDaysFromNow; min += chunkSize {
 		var envel models.Envelope
-		xml.Unmarshal(getFlights(airportCode, min, min+chunkSize), &envel)
+		err := xml.Unmarshal(getFlights(airportCode, min, min+chunkSize), &envel)
+		if err != nil {
+			globals.Logger.Error(fmt.Errorf("Error UnMarshaling flights for incremental update %s", err))
+			return
+		}
 
 		for _, flight := range envel.Body.GetFlightsResponse.GetFlightsResult.WebServiceResult.ApiResponse.Data.Flights.Flight {
 			flight.LastUpdate = time.Now()
 			flight.Action = globals.StatusAction
 			//	globals.MapMutex.Lock()
-			(*repo).FlightLinkedList.ReplaceOrAddNode(flight)
+			repo.FlightLinkedList.ReplaceOrAddNode(flight)
 			upadateAllocation(flight, airportCode, false)
 			//	globals.MapMutex.Unlock()
 		}

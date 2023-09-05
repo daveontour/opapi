@@ -72,15 +72,21 @@ func SchedulePushes(airportCode string, demoMode bool) {
 			token := u.Key
 
 			if sub.ReptitionHours != 0 {
-				s.Every(sub.ReptitionHours).Hours().StartAt(startTime).Tag(token).Do(func() {
+				_, err := s.Every(sub.ReptitionHours).Hours().StartAt(startTime).Tag(token).Do(func() {
 					schedulePushJobChannel <- models.SchedulePushJob{Sub: sub, UserToken: token, UserName: user, UserProfile: &u}
 				})
+				if err != nil {
+					globals.Logger.Error(fmt.Errorf("Error scheduling hour push %s", err))
+				}
 				globals.Logger.Info(fmt.Sprintf("Scheduled Push for user %s, starting from %s, repeating every %v hours", u.UserName, startTimeStr, sub.ReptitionHours))
 			}
 			if sub.ReptitionMinutes != 0 {
-				s.Every(sub.ReptitionMinutes).Minutes().StartAt(time.Now()).Tag(token).Do(func() {
+				_, err := s.Every(sub.ReptitionMinutes).Minutes().StartAt(time.Now()).Tag(token).Do(func() {
 					schedulePushJobChannel <- models.SchedulePushJob{Sub: sub, UserToken: token, UserName: user, UserProfile: &u}
 				})
+				if err != nil {
+					globals.Logger.Error(fmt.Errorf("Error scheduling minute push %s", err))
+				}
 				globals.Logger.Info(fmt.Sprintf("Scheduled Push for user %s, starting from now, repeating every %v minutes", u.UserName, sub.ReptitionMinutes))
 
 			}
@@ -96,19 +102,16 @@ func SchedulePushes(airportCode string, demoMode bool) {
 
 func HandleFlightUpdate(mess models.FlightUpdateChannelMessage) {
 	checkForImpactedSubscription(mess, "UPDATE")
-	return
 }
 
 func HandleFlightCreate(mess models.FlightUpdateChannelMessage) {
 	checkForImpactedSubscription(mess, "CREATE")
-	return
 }
 
 func HandleFlightDelete(flt models.Flight) {
 	flt.Action = "DELETE"
 	checkForImpactedDeleteSubscription(flt)
 	publishAllUpdatesToRabbit(flt)
-	return
 }
 
 // Check if any of the registered change subscriptions are interested in this change
@@ -232,8 +235,6 @@ NextSub:
 			continue
 		}
 	}
-
-	return
 }
 func checkForImpactedDeleteSubscription(flt models.Flight) {
 
@@ -268,8 +269,6 @@ func checkForImpactedDeleteSubscription(flt models.Flight) {
 			changePushJobChannel <- models.ChangePushJob{Sub: sub, Flight: &flt, UserProfile: &profile}
 		}
 	}
-
-	return
 }
 
 func executeChangePushWorker(id int, jobs <-chan models.ChangePushJob) {
@@ -288,9 +287,11 @@ func executeChangePushWorker(id int, jobs <-chan models.ChangePushJob) {
 			return
 		}
 		defer func() {
-			file.Close()
-
-			err := os.Remove(file.Name())
+			err := file.Close()
+			if err != nil {
+				fmt.Println(err.Error())
+			}
+			err = os.Remove(file.Name())
 			if err != nil {
 				fmt.Println(err.Error())
 			} else {
@@ -299,9 +300,21 @@ func executeChangePushWorker(id int, jobs <-chan models.ChangePushJob) {
 		}()
 
 		fwb := bufio.NewWriterSize(file, 32768)
-		job.Flight.WriteJSON(fwb, job.UserProfile, false)
-		fwb.Flush()
-		bytesdata, _ := os.ReadFile(file.Name())
+		err := job.Flight.WriteJSON(fwb, job.UserProfile, false)
+		if err != nil {
+			globals.Logger.Error(fmt.Errorf("Error in executeChangePushWorker %s", err))
+			return
+		}
+		err = fwb.Flush()
+		if err != nil {
+			globals.Logger.Error(fmt.Errorf("Error in executeChangePushWorker %s", err))
+			return
+		}
+		bytesdata, err := os.ReadFile(file.Name())
+		if err != nil {
+			globals.Logger.Error(fmt.Errorf("Error in executeChangePushWorker %s", err))
+			return
+		}
 
 		//If configured, send to Rabbit Exchange
 		if job.Sub.PublishChangesRabbitMQConnectionString != "" &&
@@ -363,22 +376,35 @@ func executeScheduledPushWorker(id int, jobs <-chan models.SchedulePushJob) {
 		}
 
 		var fileName string
+		var err error
 
 		if strings.ToLower(job.Sub.SubscriptionType) == "flight" {
-			flightresponse, _ := GetRequestedFlightsSub(job.Sub, job.UserToken)
-			fileName, _ = writeFlightResponseToFile(flightresponse, job.UserProfile, true)
-		} else if strings.ToLower(job.Sub.SubscriptionType) == "resource" {
-			resourceresponse, _ := GetResourceSub(job.Sub, job.UserToken)
-			fileName, _ = writeResourceResponseToFile(resourceresponse, job.UserProfile)
+			flightresponse, serr := GetRequestedFlightsSub(job.Sub, job.UserToken)
+			if serr.Err != nil {
+				fileName, err = writeFlightResponseToFile(flightresponse, job.UserProfile, true)
+			} else {
+				err = serr.Err
+			}
 
+		} else if strings.ToLower(job.Sub.SubscriptionType) == "resource" {
+			resourceresponse, serr := GetResourceSub(job.Sub, job.UserToken)
+			if serr.Err != nil {
+				fileName, err = writeResourceResponseToFile(resourceresponse, job.UserProfile)
+			} else {
+				err = serr.Err
+			}
+
+		}
+
+		if err != nil {
+			globals.Logger.Error(fmt.Errorf("Error in executeScheduledPushWorker %s", err))
+			return
 		}
 
 		defer func() {
 			err := os.Remove(fileName)
 			if err != nil {
-				fmt.Println(err.Error())
-			} else {
-				fmt.Println("Temp file deleted for HTTP Client Send")
+				globals.Logger.Error(fmt.Errorf("Error in executeScheduledPushWorker deleting temp file %s", err))
 			}
 		}()
 
@@ -555,8 +581,16 @@ func publishAllUpdatesToRabbit(flt models.Flight) {
 	}
 
 	fwb := bufio.NewWriterSize(file, 32768)
-	flt.WriteJSON(fwb, &profile, false)
-	fwb.Flush()
+	err := flt.WriteJSON(fwb, &profile, false)
+	if err != nil {
+		globals.Logger.Error(fmt.Errorf("Error in publishAllUpdatesToRabbit %s", err))
+		return
+	}
+	err = fwb.Flush()
+	if err != nil {
+		globals.Logger.Error(fmt.Errorf("Error in publishAllUpdatesToRabbit %s", err))
+		return
+	}
 	bytesdata, _ := os.ReadFile(file.Name())
 
 	defer func() {

@@ -40,7 +40,7 @@ func GetResourceAPI(c *gin.Context) {
 	userProfile := GetUserProfile(c, "")
 
 	if !userProfile.Enabled {
-		c.JSON(http.StatusUnauthorized, gin.H{"Error": fmt.Sprintf("%s", "User Access Has Been Disabled")})
+		c.JSON(http.StatusUnauthorized, gin.H{"Error": "User Access Has Been Disabled"})
 		return
 	}
 
@@ -96,7 +96,7 @@ func GetResourceAPI(c *gin.Context) {
 			}
 		}()
 	} else {
-		c.JSON(http.StatusBadRequest, gin.H{"Error": fmt.Sprintf("%s", error.Error())})
+		c.JSON(http.StatusBadRequest, gin.H{"Error": error.Error()})
 	}
 }
 
@@ -197,7 +197,7 @@ func getResourcesCommon(apt, flightID, airline, resourceType, resource, from, to
 	if GetRepo(apt) == nil {
 		return response, models.GetFlightsError{
 			StatusCode: http.StatusBadRequest,
-			Err:        errors.New(fmt.Sprintf("Airport %s not found", apt)),
+			Err:        fmt.Errorf("Airport %s not found", apt),
 		}
 	}
 
@@ -349,7 +349,7 @@ func GetConfiguredResources(c *gin.Context) {
 	// Get the profile of the user making the request
 	userProfile := GetUserProfile(c, "")
 	if !userProfile.Enabled {
-		c.JSON(http.StatusUnauthorized, gin.H{"Error": fmt.Sprintf("%s", "User Access Has Been Disabled")})
+		c.JSON(http.StatusUnauthorized, gin.H{"Error": "User Access Has Been Disabled"})
 		return
 	}
 	globals.RequestLogger.Info(fmt.Sprintf("User: %s IP: %s Request:%s", userProfile.UserName, c.RemoteIP(), c.Request.RequestURI))
@@ -466,13 +466,13 @@ func GetConfiguredResources(c *gin.Context) {
 		c.Writer.Header().Set("Content-Type", "application/json")
 		c.File(file.Name())
 	} else {
-		c.JSON(http.StatusBadRequest, gin.H{"Error": fmt.Sprintf("%s", error.Error())})
+		c.JSON(http.StatusBadRequest, gin.H{"Error": error.Error()})
 	}
 
 	if err == nil {
 		c.JSON(http.StatusOK, response)
 	} else {
-		c.JSON(http.StatusBadRequest, gin.H{"Error": fmt.Sprintf("%s", err.Error())})
+		c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
 	}
 }
 
@@ -493,8 +493,14 @@ func writeResourceResponseToFile(response models.ResourceResponse, userProfile *
 	// 	globals.FileDeleteChannel <- file.Name()
 	// }()
 
-	response.WriteJSON(fwb)
-	fwb.Flush()
+	e = response.WriteJSON(fwb)
+	if e != nil {
+		return
+	}
+	e = fwb.Flush()
+	if e != nil {
+		return
+	}
 
 	return file.Name(), nil
 }

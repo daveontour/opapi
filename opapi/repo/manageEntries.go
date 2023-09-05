@@ -17,7 +17,11 @@ import (
 func UpdateFlightEntry(message string, append bool, notify bool) {
 
 	var envel models.FlightUpdatedNotificationEnvelope
-	xml.Unmarshal([]byte(message), &envel)
+	e := xml.Unmarshal([]byte(message), &envel)
+	if e != nil {
+		globals.Logger.Error(fmt.Errorf("Error decoding create flight message %s", e))
+		return
+	}
 
 	flight := envel.Content.FlightUpdatedNotification.Flight
 
@@ -61,8 +65,14 @@ func UpdateFlightEntry(message string, append bool, notify bool) {
 }
 func createFlightEntry(message string, notify bool) {
 
+	var e error
+
 	var envel models.FlightCreatedNotificationEnvelope
-	xml.Unmarshal([]byte(message), &envel)
+	e = xml.Unmarshal([]byte(message), &envel)
+	if e != nil {
+		globals.Logger.Error(fmt.Errorf("Error decoding create flight message %s", e))
+		return
+	}
 
 	flight := envel.Content.FlightCreatedNotification.Flight
 	flight.LastUpdate = time.Now()
@@ -80,10 +90,9 @@ func createFlightEntry(message string, notify bool) {
 		log.Println("Create for Flight After Window")
 		return
 	}
-	//globals.MapMutex.Lock()
+
 	repo.FlightLinkedList.ReplaceOrAddNode(flight)
 	upadateAllocation(flight, airportCode, false)
-	//globals.MapMutex.Unlock()
 
 	if notify {
 		globals.FlightCreatedChannel <- models.FlightUpdateChannelMessage{FlightID: flight.GetFlightID(), AirportCode: airportCode}
@@ -92,7 +101,11 @@ func createFlightEntry(message string, notify bool) {
 func deleteFlightEntry(message string, notify bool) {
 
 	var envel models.FlightDeletedNotificationEnvelope
-	xml.Unmarshal([]byte(message), &envel)
+	e := xml.Unmarshal([]byte(message), &envel)
+	if e != nil {
+		globals.Logger.Error(fmt.Errorf("Error decoding delte flight message %s", e))
+		return
+	}
 
 	flight := envel.Content.FlightDeletedNotification.Flight
 	flight.Action = globals.DeleteAction
@@ -101,8 +114,8 @@ func deleteFlightEntry(message string, notify bool) {
 	repo := GetRepo(airportCode)
 
 	flightCopy := flight
-	(*repo).FlightLinkedList.RemoveNode(flight)
-	(*repo).RemoveFlightAllocation(flight.GetFlightID())
+	repo.FlightLinkedList.RemoveNode(flight)
+	repo.RemoveFlightAllocation(flight.GetFlightID())
 
 	if notify {
 		globals.FlightDeletedChannel <- flightCopy

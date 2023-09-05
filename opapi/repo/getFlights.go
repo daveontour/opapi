@@ -76,11 +76,15 @@ func GetRequestedFlightsAPI(c *gin.Context) {
 		route = c.Query("r")
 	}
 
-	response, _ := GetRequestedFlightsCommon(apt, direction, airline, flt, from, to, route, "", c, nil)
+	response, err := GetRequestedFlightsCommon(apt, direction, airline, flt, from, to, route, "", c, nil)
+	if err.Err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
+		return
+	}
 
-	fileName, err := writeFlightResponseToFile(response, &userProfile, true)
+	fileName, err2 := writeFlightResponseToFile(response, &userProfile, true)
 
-	if err == nil {
+	if err2 == nil {
 		c.Writer.Header().Set("Content-Type", "application/json")
 		c.File(fileName)
 
@@ -156,7 +160,7 @@ func GetRequestedFlightsCommon(apt, direction, airline, flt, from, to, route, us
 	if GetRepo(apt) == nil {
 		return response, models.GetFlightsError{
 			StatusCode: http.StatusBadRequest,
-			Err:        errors.New(fmt.Sprintf("Airport %s not found", apt)),
+			Err:        fmt.Errorf("Airport %s not found", apt),
 		}
 	}
 
@@ -233,7 +237,7 @@ func processCustomFieldQueries(request models.Request, response models.Response,
 				customFieldQureyMap[k] = v[0]
 			}
 		}
-	} else if qf != nil {
+	} else {
 		for _, pvPair := range qf {
 			parameter := pvPair.Parameter
 			value := pvPair.Value
@@ -428,71 +432,126 @@ NextFlight:
 
 func writeFlightResponseToFile(response models.Response, userProfile *models.UserProfile, statusOnly bool) (fileName string, e error) {
 
-	file, errs := os.CreateTemp("", "getflighttemp-*.txt")
-	if errs != nil {
-		fmt.Println(errs)
+	file, e := os.CreateTemp("", "getflighttemp-*.txt")
+	if e != nil {
+		fmt.Println(e)
 		return
 	}
 	fwb := bufio.NewWriterSize(file, 32768)
 	defer file.Close()
 
 	fmt.Println("The temporary file is created:", file.Name())
-	fwb.WriteByte('{')
-	fwb.WriteString("\"Airport\":\"" + response.AirportCode + "\",")
-	fwb.WriteString("\"Direction\":\"" + response.Direction + "\",")
-	fwb.WriteString("\"ScheduleFlightsFrom\":\"" + response.From + "\",")
-	fwb.WriteString("\"ScheduleFlightsTo\":\"" + response.To + "\",")
-	fwb.WriteString("\"NumberOfFlights\":\"" + fmt.Sprintf("%v", response.NumberOfFlights) + "\",")
+	e = fwb.WriteByte('{')
+	if e != nil {
+		return
+	}
+	_, e = fwb.WriteString("\"Airport\":\"" + response.AirportCode + "\"," +
+		"\"Direction\":\"" + response.Direction + "\"," +
+		"\"ScheduleFlightsFrom\":\"" + response.From + "\"," +
+		"\"ScheduleFlightsTo\":\"" + response.To + "\"," +
+		"\"NumberOfFlights\":\"" + fmt.Sprintf("%v", response.NumberOfFlights) + "\",")
+	if e != nil {
+		return
+	}
+
 	if response.Airline != "" {
-		fwb.WriteString("\"Airline\":\"" + response.Airline + "\",")
+		_, e = fwb.WriteString("\"Airline\":\"" + response.Airline + "\",")
 	} else {
-		fwb.WriteString("\"Airline\":\"*\",")
+		_, e = fwb.WriteString("\"Airline\":\"*\",")
+	}
+	if e != nil {
+		return
 	}
 	if response.Flight != "" {
-		fwb.WriteString("\"Flight\":\"" + response.Flight + "\",")
+		_, e = fwb.WriteString("\"Flight\":\"" + response.Flight + "\",")
 	} else {
-		fwb.WriteString("\"Flight\":\"*\",")
+		_, e = fwb.WriteString("\"Flight\":\"*\",")
+	}
+	if e != nil {
+		return
 	}
 	if response.Route != "" {
-		fwb.WriteString("\"Route\":\"" + response.Route + "\",")
+		_, e = fwb.WriteString("\"Route\":\"" + response.Route + "\",")
 	} else {
-		fwb.WriteString("\"Route\":\"*\",")
+		_, e = fwb.WriteString("\"Route\":\"*\",")
 	}
-	fwb.WriteString("\"CustomFieldQuery\":[")
+	if e != nil {
+		return
+	}
+	_, e = fwb.WriteString("\"CustomFieldQuery\":[")
+	if e != nil {
+		return
+	}
 	for idx, w := range response.CustomFieldQuery {
 		if idx > 0 {
-			fwb.WriteString(",")
+			_, e = fwb.WriteString(",")
+			if e != nil {
+				return
+			}
 		}
-		fwb.WriteString("{\"Parameter\":\"" + w.Parameter + "\",\"Value\":\"" + w.Value + "\"}")
+		_, e = fwb.WriteString("{\"Parameter\":\"" + w.Parameter + "\",\"Value\":\"" + w.Value + "\"}")
+		if e != nil {
+			return
+		}
 	}
-	fwb.WriteString("],")
+	_, e = fwb.WriteString("],")
+	if e != nil {
+		return
+	}
 
-	fwb.WriteString("\"Warnings\":[")
+	_, e = fwb.WriteString("\"Warnings\":[")
+	if e != nil {
+		return
+	}
 	for idx, w := range response.Warnings {
 		if idx > 0 {
-			fwb.WriteString(",")
+			_, e = fwb.WriteString(",")
+			if e != nil {
+				return
+			}
 		}
-		fwb.WriteString("\"" + w + "\"")
+		_, e = fwb.WriteString("\"" + w + "\"")
+		if e != nil {
+			return
+		}
 	}
-	fwb.WriteString("],")
+	_, e = fwb.WriteString("],")
+	if e != nil {
+		return
+	}
 
-	fwb.WriteString("\"Errors\":[")
+	_, e = fwb.WriteString("\"Errors\":[")
+	if e != nil {
+		return
+	}
 	for idx, w := range response.Errors {
 		if idx > 0 {
-			fwb.WriteString(",")
+			_, e = fwb.WriteString(",")
+			if e != nil {
+				return
+			}
 		}
-		fwb.WriteString("\"" + w + "\"")
+		_, e = fwb.WriteString("\"" + w + "\"")
+		if e != nil {
+			return
+		}
 	}
-	fwb.WriteString("],")
-
-	err := models.WriteFlightsInJSON(fwb, response.ResponseFlights, userProfile, statusOnly)
-	err2 := fwb.WriteByte('}')
-	err3 := fwb.Flush()
-
-	if err == nil && err2 == nil && err3 == nil {
-		return file.Name(), nil
-	} else {
-		return "", errors.New("error creating response file")
+	_, e = fwb.WriteString("],")
+	if e != nil {
+		return
 	}
 
+	e = models.WriteFlightsInJSON(fwb, response.ResponseFlights, userProfile, statusOnly)
+	if e != nil {
+		return
+	}
+	e = fwb.WriteByte('}')
+	if e != nil {
+		return
+	}
+	e = fwb.Flush()
+	if e != nil {
+		return
+	}
+	return file.Name(), nil
 }

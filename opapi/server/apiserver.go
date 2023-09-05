@@ -38,33 +38,37 @@ func StartGinServer(demoMode bool) {
 
 	// Test purposes only to just printout whatever was received by the server
 	if globals.ConfigViper.GetBool("TestHTTPServer") {
-		router.POST("/test", testQuery)
+		router.POST("/test", func(c *gin.Context) {
+			if globals.Logger.Level == logrus.TraceLevel {
+				globals.Logger.Info("Received message on test HTTP Server")
+				jsonData, _ := io.ReadAll(c.Request.Body)
+				fmt.Println(string(jsonData[:]))
+			} else {
+				globals.Logger.Info("Received message on test HTTP Server")
+			}
+		})
 	}
 	router.GET("/getFlights/:apt", repo.GetRequestedFlightsAPI)
 	router.GET("/getAllocations/:apt", repo.GetResourceAPI)
 	router.GET("/getConfiguredResources/:apt/:resourceType", repo.GetConfiguredResources)
 	router.GET("/getConfiguredResources/:apt", repo.GetConfiguredResources)
 
-	router.GET("/admin/reinit/:apt", reinit)
-	router.GET("/admin/stopJobs/:apt/:userToken", stopJobs)
-	router.GET("/admin/stopAllAptJobs/:apt", stopAllAptJobs)
-	router.GET("/admin/rescheduleAllAptJobs/:apt", rescheduleAllAptJobs)
 	router.GET("/admin/repoMetricsReport/:apt", metricsReport)
 	router.GET("/admin/repoMetricsReportNow/:apt", metricsReportNow)
 	router.GET("/admin/enableMetrics", func(c *gin.Context) {
 		if hasAdminToken(c) {
 			globals.MetricsLogger.SetLevel(logrus.InfoLevel)
 			globals.MetricsLogger.Info("Performance Metrics Reporting Enabled")
-			c.JSON(http.StatusOK, gin.H{"PerformanceMetricsReporting": fmt.Sprintf("Enabled")})
+			c.JSON(http.StatusOK, gin.H{"PerformanceMetricsReporting": "Enabled"})
 		} else {
-			c.JSON(http.StatusForbidden, gin.H{"Error": fmt.Sprintf("Not Authorized")})
+			c.JSON(http.StatusForbidden, gin.H{"Error": "Not Authorized"})
 		}
 	})
 	router.GET("/admin/disableMetrics", func(c *gin.Context) {
 		if hasAdminToken(c) {
 			globals.MetricsLogger.Info("Performance Metrics Reporting Disabled")
 			globals.MetricsLogger.SetLevel(logrus.ErrorLevel)
-			c.JSON(http.StatusOK, gin.H{"PerformanceMetricsReporting": fmt.Sprintf("Disabledd")})
+			c.JSON(http.StatusOK, gin.H{"PerformanceMetricsReporting": "Disabledd"})
 		} else {
 			globals.MetricsLogger.Info("Performance Metrics Enabled")
 		}
@@ -86,23 +90,12 @@ func StartGinServer(demoMode bool) {
 		_, _ = c.Writer.Write(data)
 	})
 
-	// router.GET("/admin/perftest/:num", func(c *gin.Context) {
-	// 	if hasAdminToken(c) {
-	// 		num := c.Param("num")
-	// 		nf, _ := strconv.Atoi(num)
-	// 		repo.SendUpdateMessages(nf)
-
-	// 		c.JSON(http.StatusOK, gin.H{"PerformanceTest": fmt.Sprintf("Done")})
-	// 	} else {
-	// 		c.JSON(http.StatusForbidden, gin.H{"Error": fmt.Sprintf("Not Authorized")})
-	// 	}
-	// })
-
 	if demoMode {
+		//These endpoints are only started in Demo Mode and allow the service to be populated with data from the opapiseeder program
 		router.POST("/demoMessageAppend", func(c *gin.Context) {
 			xmlData, err := io.ReadAll(c.Request.Body)
 			if err != nil {
-				// Handle error
+				c.JSON(http.StatusBadRequest, gin.H{"PostDemoMessageError": fmt.Errorf(err.Error())})
 			}
 			fmt.Println("Demo flight append message received")
 			repo.UpdateFlightEntry(string(xmlData), true, true)
@@ -110,7 +103,7 @@ func StartGinServer(demoMode bool) {
 		router.POST("/demoMessageUpdate", func(c *gin.Context) {
 			xmlData, err := io.ReadAll(c.Request.Body)
 			if err != nil {
-				// Handle error
+				c.JSON(http.StatusBadRequest, gin.H{"PostDemoMessageError": fmt.Errorf(err.Error())})
 			}
 			fmt.Println("Demo flight uppdate message received")
 			repo.UpdateFlightEntry(string(xmlData), false, true)
@@ -122,30 +115,10 @@ func StartGinServer(demoMode bool) {
 
 	}
 
-	// router.GET("/admin/perftestinit/:num", func(c *gin.Context) {
-	// 	if hasAdminToken(c) {
-	// 		num := c.Param("num")
-	// 		nf, _ := strconv.Atoi(num)
-	// 		repo.PerfTestInit(nf)
-	// 		c.JSON(http.StatusOK, gin.H{"PerformanceTest": fmt.Sprintf("Done")})
-	// 	} else {
-	// 		c.JSON(http.StatusForbidden, gin.H{"Error": fmt.Sprintf("Not Authorized")})
-	// 	}
-	// })
-
-	// router.GET("/memTest", func(c *gin.Context) {
-	// 	i := 0
-	// 	for {
-	// 		response, _ := getRequestedFlightsCommon("AUH", "", "", "", "", "", "", "default", nil, []ParameterValuePair{})
-	// 		j, _ := json.Marshal(response)
-	// 		fmt.Printf("Iteration %v, Length %v\n", i, len(j))
-	// 		i++
-	// 	}
-	// })
-
 	// Start it up with the configured security mode
 	if !globals.ConfigViper.GetBool("UseHTTPS") && !globals.ConfigViper.GetBool("UseHTTPSUntrusted") {
 
+		// Plain old HTTP
 		err := router.Run(globals.ConfigViper.GetString("ServiceIPPort"))
 		if err != nil {
 			globals.Logger.Fatal("Unable to start HTTP server.")
@@ -155,6 +128,7 @@ func StartGinServer(demoMode bool) {
 
 	} else if globals.ConfigViper.GetBool("UseHTTPS") && globals.ConfigViper.GetString("KeyFile") != "" && globals.ConfigViper.GetString("CertFile") != "" {
 
+		// HTTPS with a supplied Certificate file and Key File
 		server := http.Server{Addr: globals.ConfigViper.GetString("ServiceIPPort"), Handler: router}
 		err := server.ListenAndServeTLS(globals.ConfigViper.GetString("CertFile"), globals.ConfigViper.GetString("KeyFile"))
 		if err != nil {
@@ -165,12 +139,14 @@ func StartGinServer(demoMode bool) {
 
 	} else if globals.ConfigViper.GetBool("UseHTTPS") && (globals.ConfigViper.GetString("KeyFile") == "" && globals.ConfigViper.GetString("CertFile") == "") {
 
+		// HTTPS was configured, but the certificate and key file were not configured
 		globals.Logger.Fatal("Unable to start HTTPS server. Trusted HTTPS was configured but The keyFile or certFile were not configured")
 		globals.Wg.Done()
 		os.Exit(2)
 
 	} else if globals.ConfigViper.GetBool("UseHTTPSUntruste") {
 
+		//Use HTTPS with a dodgy local certificate
 		cert := &x509.Certificate{
 			SerialNumber: big.NewInt(1658),
 			Subject: pkix.Name{
@@ -213,6 +189,7 @@ func StartGinServer(demoMode bool) {
 }
 
 func hasAdminToken(c *gin.Context) bool {
+	// See if there is a valid admin token supplied in the header of the request
 	keys := c.Request.Header["Token"]
 	if keys == nil {
 		return false
@@ -224,18 +201,18 @@ func hasAdminToken(c *gin.Context) bool {
 	}
 }
 
-func reinit(c *gin.Context) {
+// func reinit(c *gin.Context) {
 
-	if !hasAdminToken(c) {
-		c.JSON(http.StatusForbidden, gin.H{"Error": fmt.Sprintf("Not Authorized")})
-		return
-	} else {
-		globals.RequestLogger.Info(fmt.Sprintf("User: %s IP: %s Request:%s", "admin", c.RemoteIP(), c.Request.RequestURI))
-	}
+// 	if !hasAdminToken(c) {
+// 		c.JSON(http.StatusForbidden, gin.H{"Error": fmt.Sprintf("Not Authorized")})
+// 		return
+// 	} else {
+// 		globals.RequestLogger.Info(fmt.Sprintf("User: %s IP: %s Request:%s", "admin", c.RemoteIP(), c.Request.RequestURI))
+// 	}
 
-	apt := c.Param("apt")
-	repo.ReInitAirport(apt)
-}
+// 	apt := c.Param("apt")
+// 	repo.ReInitAirport(apt)
+// }
 
 func metricsReport(c *gin.Context) {
 	// Get the profile of the user making the request
@@ -255,30 +232,29 @@ func metricsReport(c *gin.Context) {
 	repo := repo.GetRepo(apt)
 
 	if repo == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Error": fmt.Sprintf("Airport not found")})
+		c.JSON(http.StatusBadRequest, gin.H{"Error": "Airport not found"})
 		return
-
 	}
 
-	metrics.NumberOfFlights = (*repo).FlightLinkedList.Len()
-	metrics.NumberOfCheckins = (*repo).CheckInList.Len()
+	metrics.NumberOfFlights = repo.FlightLinkedList.Len()
+	metrics.NumberOfCheckins = repo.CheckInList.Len()
 
-	metrics.NumberOfGates = (*repo).GateList.Len()
-	metrics.NumberOfStands = (*repo).StandList.Len()
-	metrics.NumberOfCarousels = (*repo).CarouselList.Len()
-	metrics.NumberOfChutes = (*repo).ChuteList.Len()
+	metrics.NumberOfGates = repo.GateList.Len()
+	metrics.NumberOfStands = repo.StandList.Len()
+	metrics.NumberOfCarousels = repo.CarouselList.Len()
+	metrics.NumberOfChutes = repo.ChuteList.Len()
 
-	metrics.TotalNumberOfCheckinAllocations = (*repo).CheckInList.NumberOfFlightAllocations()
-	metrics.TotalNumberOfStandAllocations = (*repo).StandList.NumberOfFlightAllocations()
-	metrics.TotalNumberOfGateAllocations = (*repo).GateList.NumberOfFlightAllocations()
-	metrics.TotalNumberOfCarouselAllocations = (*repo).CarouselList.NumberOfFlightAllocations()
-	metrics.TotalNumberOfChuteAllocations = (*repo).ChuteList.NumberOfFlightAllocations()
+	metrics.TotalNumberOfCheckinAllocations = repo.CheckInList.NumberOfFlightAllocations()
+	metrics.TotalNumberOfStandAllocations = repo.StandList.NumberOfFlightAllocations()
+	metrics.TotalNumberOfGateAllocations = repo.GateList.NumberOfFlightAllocations()
+	metrics.TotalNumberOfCarouselAllocations = repo.CarouselList.NumberOfFlightAllocations()
+	metrics.TotalNumberOfChuteAllocations = repo.ChuteList.NumberOfFlightAllocations()
 
-	metrics.CheckInAllocationMetrics = (*repo).CheckInList.AllocationsMetrics()
-	metrics.GateAllocationMetrics = (*repo).GateList.AllocationsMetrics()
-	metrics.StandAllocationMetrics = (*repo).StandList.AllocationsMetrics()
-	metrics.CarouselAllocationMetrics = (*repo).CarouselList.AllocationsMetrics()
-	metrics.ChuteAllocationMetrics = (*repo).ChuteList.AllocationsMetrics()
+	metrics.CheckInAllocationMetrics = repo.CheckInList.AllocationsMetrics()
+	metrics.GateAllocationMetrics = repo.GateList.AllocationsMetrics()
+	metrics.StandAllocationMetrics = repo.StandList.AllocationsMetrics()
+	metrics.CarouselAllocationMetrics = repo.CarouselList.AllocationsMetrics()
+	metrics.ChuteAllocationMetrics = repo.ChuteList.AllocationsMetrics()
 
 	// var m runtime.MemStats
 	// runtime.ReadMemStats(&m)
@@ -310,97 +286,30 @@ func metricsReportNow(c *gin.Context) {
 	repo := repo.GetRepo(apt)
 
 	if repo == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Error": fmt.Sprintf("Airport not found")})
+		c.JSON(http.StatusBadRequest, gin.H{"Error": "Airport not found"})
 		return
-
 	}
 
-	metrics.NumberOfFlights = (*repo).FlightLinkedList.Len()
-	metrics.NumberOfCheckins = (*repo).CheckInList.Len()
+	metrics.NumberOfFlights = repo.FlightLinkedList.Len()
+	metrics.NumberOfCheckins = repo.CheckInList.Len()
 
-	metrics.NumberOfGates = (*repo).GateList.Len()
-	metrics.NumberOfStands = (*repo).StandList.Len()
-	metrics.NumberOfCarousels = (*repo).CarouselList.Len()
-	metrics.NumberOfChutes = (*repo).ChuteList.Len()
+	metrics.NumberOfGates = repo.GateList.Len()
+	metrics.NumberOfStands = repo.StandList.Len()
+	metrics.NumberOfCarousels = repo.CarouselList.Len()
+	metrics.NumberOfChutes = repo.ChuteList.Len()
 
-	metrics.TotalNumberOfCheckinAllocationsNow = (*repo).CheckInList.NumberOfFlightAllocationsNow()
-	metrics.TotalNumberOfStandAllocationsNow = (*repo).StandList.NumberOfFlightAllocationsNow()
-	metrics.TotalNumberOfGateAllocationsNow = (*repo).GateList.NumberOfFlightAllocationsNow()
-	metrics.TotalNumberOfCarouselAllocationsNow = (*repo).CarouselList.NumberOfFlightAllocationsNow()
-	metrics.TotalNumberOfChuteAllocationsNow = (*repo).ChuteList.NumberOfFlightAllocationsNow()
+	metrics.TotalNumberOfCheckinAllocationsNow = repo.CheckInList.NumberOfFlightAllocationsNow()
+	metrics.TotalNumberOfStandAllocationsNow = repo.StandList.NumberOfFlightAllocationsNow()
+	metrics.TotalNumberOfGateAllocationsNow = repo.GateList.NumberOfFlightAllocationsNow()
+	metrics.TotalNumberOfCarouselAllocationsNow = repo.CarouselList.NumberOfFlightAllocationsNow()
+	metrics.TotalNumberOfChuteAllocationsNow = repo.ChuteList.NumberOfFlightAllocationsNow()
 
-	metrics.CheckInAllocationMetricsNow = (*repo).CheckInList.AllocationsMetricsNow()
-	metrics.GateAllocationMetricsNow = (*repo).GateList.AllocationsMetricsNow()
-	metrics.StandAllocationMetricsNow = (*repo).StandList.AllocationsMetricsNow()
-	metrics.CarouselAllocationMetricsNow = (*repo).CarouselList.AllocationsMetricsNow()
-	metrics.ChuteAllocationMetricsNow = (*repo).ChuteList.AllocationsMetricsNow()
-
-	// var m runtime.MemStats
-	// runtime.ReadMemStats(&m)
-	// metrics.MemAllocMB = int(m.Alloc / 1024 / 1024)
-	// metrics.MemSysMB = int(m.Sys / 1024 / 1024)
-	// metrics.MemTotaAllocMB = int(m.TotalAlloc / 1024 / 1024)
-	// metrics.MemHeapAllocMB = int(m.HeapAlloc / 1024 / 1024)
-	// metrics.MemNumGC = int(m.NumGC)
+	metrics.CheckInAllocationMetricsNow = repo.CheckInList.AllocationsMetricsNow()
+	metrics.GateAllocationMetricsNow = repo.GateList.AllocationsMetricsNow()
+	metrics.StandAllocationMetricsNow = repo.StandList.AllocationsMetricsNow()
+	metrics.CarouselAllocationMetricsNow = repo.CarouselList.AllocationsMetricsNow()
+	metrics.ChuteAllocationMetricsNow = repo.ChuteList.AllocationsMetricsNow()
 
 	c.JSON(http.StatusOK, gin.H{"RepositoryMetrics": metrics})
 
-}
-
-func stopJobs(c *gin.Context) {
-	// Get the profile of the user making the request
-
-	if !hasAdminToken(c) {
-		c.JSON(http.StatusForbidden, gin.H{"Error": fmt.Sprintf("Not Authorized")})
-		return
-	} else {
-		globals.RequestLogger.Info(fmt.Sprintf("User: %s IP: %s Request:%s", "admin", c.RemoteIP(), c.Request.RequestURI))
-	}
-
-	apt := c.Param("apt")
-	userToken := c.Param("userToken")
-	s := globals.SchedulerMap[apt]
-	s.RemoveByTag(userToken)
-	globals.Logger.Info(fmt.Sprintf("All Aiport Jobs Stopped for %s, user %s", apt, userToken))
-}
-
-func stopAllAptJobs(c *gin.Context) {
-
-	if !hasAdminToken(c) {
-		c.JSON(http.StatusForbidden, gin.H{"Error": fmt.Sprintf("Not Authorized")})
-		return
-	} else {
-		globals.RequestLogger.Info(fmt.Sprintf("User: %s IP: %s Request:%s", "admin", c.RemoteIP(), c.Request.RequestURI))
-	}
-
-	apt := c.Param("apt")
-
-	// Get the schedule for the particular airport and clear it
-	s := globals.SchedulerMap[apt]
-	s.Clear()
-	globals.Logger.Info(fmt.Sprintf("All Aiport Jobs Stopped for %s", apt))
-}
-func rescheduleAllAptJobs(c *gin.Context) {
-	// if !hasAdminToken(c) {
-	// 	c.JSON(http.StatusForbidden, gin.H{"Error": fmt.Sprintf("Not Authorized")})
-	// 	return
-	// } else {
-	// 	globals.RequestLogger.Info(fmt.Sprintf("User: %s IP: %s Request:%s", "admin", c.RemoteIP(), c.Request.RequestURI))
-	// }
-	// apt := c.Param("apt")
-
-	// // Reload the schdule of jobs for the airport
-	// push.ReloadschedulePushes(apt)
-	// globals.Logger.Info(fmt.Sprintf("Rescheduled All Aiport Jobs Stopped for %s", apt))
-}
-
-// Function to just write what was recieved by the server
-func testQuery(c *gin.Context) {
-	if globals.Logger.Level == logrus.TraceLevel {
-		globals.Logger.Info("Received message on test HTTP Server")
-		jsonData, _ := io.ReadAll(c.Request.Body)
-		fmt.Println(string(jsonData[:]))
-	} else {
-		globals.Logger.Info("Received message on test HTTP Server")
-	}
 }

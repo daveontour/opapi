@@ -77,10 +77,10 @@ func installService(name, displayName, desc string) error {
 		return err
 	}
 
-	defer m.Disconnect()
+	defer func() { _ = m.Disconnect() }()
 	s, err := m.OpenService(name)
 	if err == nil {
-		s.Close()
+		_ = s.Close()
 		return fmt.Errorf("service %s already exists", name)
 	}
 	s, err = m.CreateService(name, exepath, mgr.Config{DisplayName: displayName, Description: desc}, "is", "auto-started")
@@ -90,7 +90,7 @@ func installService(name, displayName, desc string) error {
 	defer s.Close()
 	err = eventlog.InstallAsEventCreate(name, eventlog.Error|eventlog.Warning|eventlog.Info)
 	if err != nil {
-		s.Delete()
+		_ = s.Delete()
 		return fmt.Errorf("SetupEventLogSource() failed: %s", err)
 	}
 	return nil
@@ -103,7 +103,7 @@ func removeService(name string) error {
 
 	//serviceConfig := getServiceConfig()
 
-	defer m.Disconnect()
+	defer func() { _ = m.Disconnect() }()
 	s, err := m.OpenService(globals.ConfigViper.GetString("ServiceName"))
 	if err != nil {
 		return fmt.Errorf("service %s is not installed", name)
@@ -124,12 +124,12 @@ func startService(name string) error {
 	if err != nil {
 		return err
 	}
-	defer m.Disconnect()
+	defer func() { _ = m.Disconnect() }()
 	s, err := m.OpenService(name)
 	if err != nil {
 		return fmt.Errorf("could not access service: %v", err)
 	}
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 	err = s.Start("is", "manual-started")
 	if err != nil {
 		return fmt.Errorf("could not start service: %v", err)
@@ -141,12 +141,12 @@ func controlService(name string, c svc.Cmd, to svc.State) error {
 	if err != nil {
 		return err
 	}
-	defer m.Disconnect()
+	defer func() { _ = m.Disconnect() }()
 	s, err := m.OpenService(name)
 	if err != nil {
 		return fmt.Errorf("could not access service: %v", err)
 	}
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 	status, err := s.Control(c)
 	if err != nil {
 		return fmt.Errorf("could not send control=%d: %v", c, err)
@@ -166,10 +166,7 @@ func controlService(name string, c svc.Cmd, to svc.State) error {
 }
 func amAdmin() bool {
 	_, err := os.Open("\\\\.\\PHYSICALDRIVE0")
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }
 func failOnError(err error, msg string) {
 	if err != nil {

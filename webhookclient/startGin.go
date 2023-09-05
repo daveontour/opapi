@@ -79,7 +79,6 @@ func StartGinServer(args []string) {
 	router.POST("/test", testQuery)
 	router.POST("/subscriptionEndPoint", subPush)
 	router.POST("/changeEndpoint", changePush)
-	router.GET("/file", fileTest)
 
 	wg.Add(1)
 	if !UseHTTPS {
@@ -133,37 +132,6 @@ func StartGinServer(args []string) {
 
 }
 
-func check(e error) {
-	if e != nil {
-		panic(e)
-	}
-}
-
-func fileTest(c *gin.Context) {
-	d1 := []byte("hello\ngo\n")
-	err := os.WriteFile("dat1", d1, 0777)
-	check(err)
-
-	f, _ := os.OpenFile("dat1", os.O_RDONLY, 0755)
-	fi, err := f.Stat()
-	if err != nil {
-		// Could not obtain stat, handle error
-	}
-	c.DataFromReader(200, fi.Size(), "application/text", f, nil)
-
-	defer func() {
-		err = f.Close()
-		if err != nil {
-			fmt.Println(err.Error())
-		} else {
-			err := os.Remove("dat1")
-			if err != nil {
-				fmt.Println(err.Error())
-			}
-		}
-	}()
-
-}
 func testQuery(c *gin.Context) {
 
 	jsonData, _ := io.ReadAll(c.Request.Body)
@@ -173,7 +141,7 @@ func testQuery(c *gin.Context) {
 func changePush(c *gin.Context) {
 
 	path := "./WebhookLogs"
-	os.MkdirAll(path, os.ModePerm)
+	_ = os.MkdirAll(path, os.ModePerm)
 
 	jsonData, _ := io.ReadAll(c.Request.Body)
 	if debug {
@@ -182,12 +150,16 @@ func changePush(c *gin.Context) {
 		fmt.Println(string(jsonData))
 	}
 	if log {
-		file, errs := os.CreateTemp("./WebhookLogs", "changelog-*.json")
-		if errs != nil {
-			fmt.Println(errs)
+		file, err := os.CreateTemp("./WebhookLogs", "changelog-*.json")
+		if err != nil {
+			fmt.Println(fmt.Errorf("Error logging to file %s", err))
 			return
 		}
-		file.WriteString(string(jsonData))
+		_, err = file.WriteString(string(jsonData))
+		if err != nil {
+			fmt.Println(fmt.Errorf("Error logging to file %s", err))
+			return
+		}
 		file.Close()
 	}
 	fmt.Printf("Change message received at %s\n", time.Now().Format(Layout))
@@ -196,7 +168,7 @@ func changePush(c *gin.Context) {
 func subPush(c *gin.Context) {
 
 	path := "./WebhookLogs"
-	os.MkdirAll(path, os.ModePerm)
+	_ = os.MkdirAll(path, os.ModePerm)
 
 	jsonData, _ := io.ReadAll(c.Request.Body)
 	if debug {
@@ -207,11 +179,15 @@ func subPush(c *gin.Context) {
 	if log {
 		file, errs := os.CreateTemp("./WebhookLogs", "pushlog-*.json")
 		if errs != nil {
-			fmt.Println(errs)
+			fmt.Println(fmt.Errorf("Error logging to file %s", errs))
 			return
 		}
-		file.WriteString(string(jsonData))
-		file.Close()
+		defer file.Close()
+		_, err := file.WriteString(string(jsonData))
+		if err != nil {
+			fmt.Println(fmt.Errorf("Error logging to file %s", err))
+			return
+		}
 	}
 	fmt.Printf("Subcription message received at %s\n", time.Now().Format(Layout))
 

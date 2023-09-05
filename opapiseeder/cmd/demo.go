@@ -457,9 +457,12 @@ func failOnError(err error, msg string) {
 func continuousUpdates() {
 	fmt.Println("\nScheduling continuous updates")
 	s := gocron.NewScheduler(time.Local)
-	s.Every(20).Second().Do(func() {
+	_, err := s.Every(20).Second().Do(func() {
 		updateJob()
 	})
+	if err != nil {
+		fmt.Println("Error scheduling regular updates")
+	}
 	s.StartBlocking()
 }
 

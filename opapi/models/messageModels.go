@@ -317,87 +317,152 @@ func (r *ResourceResponse) AddError(w string) {
 
 // JSON Reeiver function to write the JSON on an structure
 
-func (d ResourceResponse) WriteJSON(fwb *bufio.Writer) error {
+func (d ResourceResponse) WriteJSON(fwb *bufio.Writer) (err error) {
 
-	fwb.WriteString("{")
-	fwb.WriteString("\"Airport\":\"" + d.AirportCode + "\",")
-	fwb.WriteString("\"ResourceType\":\"" + d.ResourceType + "\",")
-	fwb.WriteString("\"ResourceName\":\"" + d.ResourceID + "\",")
-	fwb.WriteString("\"AllocationStart\":\"" + d.FromResource + "\",")
-	fwb.WriteString("\"AllocationEnd\":\"" + d.ToResource + "\",")
-	fwb.WriteString("\"FlightNumber\":\"" + d.FlightID + "\",")
-	fwb.WriteString("\"Airline\":\"" + d.Airline + "\",")
-	fwb.WriteString("\"CustomFieldQuery\":[")
+	_, err = fwb.WriteString("{" +
+		"\"Airport\":\"" + d.AirportCode + "\"," +
+		"\"ResourceType\":\"" + d.ResourceType + "\"," +
+		"\"ResourceName\":\"" + d.ResourceID + "\"," +
+		"\"AllocationStart\":\"" + d.FromResource + "\"," +
+		"\"AllocationEnd\":\"" + d.ToResource + "\"," +
+		"\"FlightNumber\":\"" + d.FlightID + "\"," +
+		"\"Airline\":\"" + d.Airline + "\"," +
+		"\"CustomFieldQuery\":[")
+	if err != nil {
+		return
+	}
+
 	for idx, w := range d.CustomFieldQuery {
 		if idx > 0 {
-			fwb.WriteString(",")
+			_, err = fwb.WriteString(",")
+			if err != nil {
+				return
+			}
 		}
-		fwb.WriteString("{\"" + w.Parameter + "\":\"" + w.Value + "\"}")
+		_, err = fwb.WriteString("{\"" + w.Parameter + "\":\"" + w.Value + "\"}")
+		if err != nil {
+			return
+		}
 	}
-	fwb.WriteString("],")
+	_, err = fwb.WriteString("],")
+	if err != nil {
+		return
+	}
 
-	fwb.WriteString("\"Warnings\":[")
+	_, err = fwb.WriteString("\"Warnings\":[")
+	if err != nil {
+		return
+	}
 	for idx, w := range d.Warnings {
 		if idx > 0 {
-			fwb.WriteString(",")
+			_, err = fwb.WriteString(",")
+			if err != nil {
+				return
+			}
 		}
-		fwb.WriteString("\"" + w + "\"")
+		_, err = fwb.WriteString("\"" + w + "\"")
+		if err != nil {
+			return
+		}
 	}
-	fwb.WriteString("],")
 
-	fwb.WriteString("\"Errors\":[")
+	_, err = fwb.WriteString("],\"Errors\":[")
+	if err != nil {
+		return
+	}
 	for idx, w := range d.Errors {
 		if idx > 0 {
-			fwb.WriteString(",")
+			_, err = fwb.WriteString(",")
+			if err != nil {
+				return
+			}
 		}
-		fwb.WriteString("\"" + w + "\"")
+		_, err = fwb.WriteString("\"" + w + "\"")
+		if err != nil {
+			return
+		}
 	}
-	fwb.WriteString("],")
-	fwb.WriteString("\"Allocations\": [")
+
+	_, err = fwb.WriteString("],\"Allocations\": [")
+	if err != nil {
+		return
+	}
 	for idx, a := range d.Allocations {
 		if idx > 0 {
-			fwb.WriteString(",")
+			_, err = fwb.WriteString(",")
+			if err != nil {
+				return
+			}
 		}
-		a.WriteJSON(fwb)
+		err = a.WriteJSON(fwb)
+		if err != nil {
+			return
+		}
 	}
-	fwb.WriteString("]}")
+	_, err = fwb.WriteString("]}")
+	if err != nil {
+		return
+	}
 
 	return nil
 }
 
 func (d AllocationResponseItem) WriteJSON(fwb *bufio.Writer) error {
 
-	fwb.WriteString("{")
-	fwb.WriteString("\"ResourceType\":\"" + d.ResourceType + "\",")
-	fwb.WriteString("\"Name\":\"" + d.Name + "\",")
-	fwb.WriteString("\"Area\":\"" + d.Area + "\",")
-	fwb.WriteString(fmt.Sprintf("\"AllocationStart\":\"%s\",", d.AllocationItem.From))
-	fwb.WriteString(fmt.Sprintf("\"AllocationEnd\":\"%s\",", d.AllocationItem.To))
-	fwb.WriteString("\"Flight\": {")
-	fwb.WriteString("\"FlightID\":\"" + d.AllocationItem.FlightID + "\",")
-	fwb.WriteString("\"Direction\":\"" + d.AllocationItem.Direction + "\",")
-	fwb.WriteString("\"Route\":\"" + d.AllocationItem.Route + "\",")
+	_, err := fwb.WriteString("{" +
+		"\"ResourceType\":\"" + d.ResourceType + "\"," +
+		"\"Name\":\"" + d.Name + "\"," +
+		"\"Area\":\"" + d.Area + "\"," +
+		fmt.Sprintf("\"AllocationStart\":\"%s\",", d.AllocationItem.From) +
+		fmt.Sprintf("\"AllocationEnd\":\"%s\",", d.AllocationItem.To) +
+		"\"Flight\": {" +
+		"\"FlightID\":\"" + d.AllocationItem.FlightID + "\"," +
+		"\"Direction\":\"" + d.AllocationItem.Direction + "\"," +
+		"\"Route\":\"" + d.AllocationItem.Route + "\",")
+	if err != nil {
+		return err
+	}
 	if d.AllocationItem.AircraftRegistration != "" {
-		fwb.WriteString("\"AircraftRegistration\":\"" + d.AllocationItem.AircraftRegistration + "\",")
+		_, err = fwb.WriteString("\"AircraftRegistration\":\"" + d.AllocationItem.AircraftRegistration + "\",")
+		if err != nil {
+			return err
+		}
 	}
 	if d.AllocationItem.AircraftType != "" {
-		fwb.WriteString("\"AircraftType\":\"" + d.AllocationItem.AircraftType + "\"")
+		_, err = fwb.WriteString("\"AircraftType\":\"" + d.AllocationItem.AircraftType + "\"")
+		if err != nil {
+			return err
+		}
 	}
-	fwb.WriteString(" }}")
+	_, err = fwb.WriteString(" }}")
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
 func WriteFlightsInJSON(fwb *bufio.Writer, flights []FlightResponseItem, userProfile *UserProfile, statusOnly bool) error {
-	fwb.WriteString(`"Flights":[`)
-
+	_, err := fwb.WriteString(`"Flights":[`)
+	if err != nil {
+		return err
+	}
 	for idx, currentNode := range flights {
 		if idx > 0 {
-			fwb.WriteByte(',')
+			err = fwb.WriteByte(',')
+			if err != nil {
+				return err
+			}
 		}
-		(currentNode.FlightPtr).WriteJSON(fwb, userProfile, statusOnly)
+		err = (currentNode.FlightPtr).WriteJSON(fwb, userProfile, statusOnly)
+		if err != nil {
+			return err
+		}
 	}
 
-	fwb.WriteByte(']')
+	err = fwb.WriteByte(']')
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
