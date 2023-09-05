@@ -381,7 +381,7 @@ func executeScheduledPushWorker(id int, jobs <-chan models.SchedulePushJob) {
 		if strings.ToLower(job.Sub.SubscriptionType) == "flight" {
 			flightresponse, serr := GetRequestedFlightsSub(job.Sub, job.UserToken)
 			if serr.Err != nil {
-				fileName, err = writeFlightResponseToFile(flightresponse, job.UserProfile, true)
+				fileName, err = writeFlightResponseToFile(flightresponse, job.UserProfile, "-1", true)
 			} else {
 				err = serr.Err
 			}

@@ -82,7 +82,8 @@ func GetRequestedFlightsAPI(c *gin.Context) {
 		return
 	}
 
-	fileName, err2 := writeFlightResponseToFile(response, &userProfile, true)
+	max := c.Query("max")
+	fileName, err2 := writeFlightResponseToFile(response, &userProfile, max, true)
 
 	if err2 == nil {
 		c.Writer.Header().Set("Content-Type", "application/json")
@@ -430,17 +431,25 @@ NextFlight:
 	return response, nil
 }
 
-func writeFlightResponseToFile(response models.Response, userProfile *models.UserProfile, statusOnly bool) (fileName string, e error) {
+func writeFlightResponseToFile(response models.Response, userProfile *models.UserProfile, max string, statusOnly bool) (fileName string, e error) {
 
 	file, e := os.CreateTemp("", "getflighttemp-*.json")
 	if e != nil {
 		fmt.Println(e)
 		return
 	}
+
+	maxFlights, err := strconv.Atoi(max)
+	if err != nil {
+		maxFlights = -1
+	}
+
+	if maxFlights != -1 {
+		response.AddWarning(fmt.Sprintf("Maximum number of returned flights limited to: %d", maxFlights))
+	}
 	fwb := bufio.NewWriterSize(file, 32768)
 	defer file.Close()
 
-	fmt.Println("The temporary file is created:", file.Name())
 	e = fwb.WriteByte('{')
 	if e != nil {
 		return
@@ -541,7 +550,6 @@ func writeFlightResponseToFile(response models.Response, userProfile *models.Use
 		return
 	}
 
-	maxFlights := 2
 	e = models.WriteFlightsInJSON(fwb, response.ResponseFlights, userProfile, statusOnly, maxFlights)
 	if e != nil {
 		return

@@ -1,29 +1,5 @@
 <!-- Improved compatibility of back to top link: See: https://github.com/othneildrew/Best-README-Template/pull/73 -->
 <a name="readme-top"></a>
-<!--
-*** Thanks for checking out the Best-README-Template. If you have a suggestion
-*** that would make this better, please fork the repo and create a pull request
-*** or simply open an issue with the tag "enhancement".
-*** Don't forget to give the project a star!
-*** Thanks again! Now go create something AMAZING! :D
--->
-
-
-
-<!-- PROJECT SHIELDS -->
-<!--
-*** I'm using markdown "reference style" links for readability.
-*** Reference links are enclosed in brackets [ ] instead of parentheses ( ).
-*** See the bottom of this document for the declaration of the reference variables
-*** for contributors-url, forks-url, etc. This is an optional, concise syntax you may use.
-*** https://www.markdownguide.org/basic-syntax/#reference-style-links
--->
-[![Contributors][contributors-shield]][contributors-url]
-[![Forks][forks-shield]][forks-url]
-[![Stargazers][stars-shield]][stars-url]
-[![Issues][issues-shield]][issues-url]
-[![MIT License][license-shield]][license-url]
-[![LinkedIn][linkedin-shield]][linkedin-url]
 
 
 
@@ -234,17 +210,6 @@ Project Link: [https://github.com/daveontour/opapi](https://github.com/daveontou
 <!-- ACKNOWLEDGMENTS -->
 ## Acknowledgments
 
-Use this space to list resources you find helpful and would like to give credit to. I've included a few of my favorites to kick things off!
-
-* [Choose an Open Source License](https://choosealicense.com)
-* [GitHub Emoji Cheat Sheet](https://www.webpagefx.com/tools/emoji-cheat-sheet)
-* [Malven's Flexbox Cheatsheet](https://flexbox.malven.co/)
-* [Malven's Grid Cheatsheet](https://grid.malven.co/)
-* [Img Shields](https://shields.io)
-* [GitHub Pages](https://pages.github.com)
-* [Font Awesome](https://fontawesome.com)
-* [React Icons](https://react-icons.github.io/react-icons/search)
-
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Useage and API Reference
@@ -257,7 +222,6 @@ Use this space to list resources you find helpful and would like to give credit 
 
 The APIs are accessed via HTTP GET Requests and return data in JSON format
 
- 
 #### Request Header
 The HTTP Get request header should include a parameter called "Token". <br />
 The value of "Token" is assigned by the system administrator to identify your user profile which defines your rights and capabilities to acces the APIs
@@ -266,7 +230,7 @@ If the token header is not present, you will be assigned the rights of the "defa
 
 
 ## /getFlights/[Airport]?{options}
-Retreive flight details<
+Retreive flight details
 
 |Parameter|Description|Example|
 |----|----------|-----|
@@ -420,7 +384,14 @@ An example of the conents of the service.json file is shown below
 
 # Configuring Users
 
+Access to the service can be controlled by tokens that are passed in the header of the request
+
+If the user does not provide a token for a valid configured user, then they are granted the access rights of the "default" user if configured. 
+
+
 ## Configuring User Push Subsctiptions
+
+A user can have zero, one or more push subscriptions configured. A push subscription will send the current state for a set of flights or resources configured in the subscription. The push will occur at regular intervals as defined in the subscription. The data is sent to either a WebHook endpoint and/or published to a RabbitMQ exchange as configured in the subscription. 
 
 ## Configuring User Change Subscriptions
 

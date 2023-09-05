@@ -447,7 +447,7 @@ func WriteFlightsInJSON(fwb *bufio.Writer, flights []FlightResponseItem, userPro
 		return err
 	}
 	for idx, currentNode := range flights {
-		if idx > maxFlights {
+		if maxFlights > 0 && idx > maxFlights {
 			break
 		}
 		if idx > 0 {
