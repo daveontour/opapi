@@ -117,7 +117,10 @@ The service also provides Push notification of changes and regular scheduled upd
  - Limit administration tasks to configuration only.
  - Include the tools to test performance and demonstrate capability
 
+In addition to the main service (opapi.exe) project includes two utility programs:
 
+- **opapiseeder.exe** This utility is used to seed the serive with demonstration flights and allocation when the servoce is run in Demonstration or Performance Test Mode
+- **webhookclient.exe** The service has the ability to seed change notifications and status updates via a WebHooks implementation. This program allows you to run a demonstration webhook client to deomonstate this capability 
 ### Built With
 
 The service is built using the Go ( version 1.20 ) programming language. No other runtime software components are require other than the service itself
@@ -130,7 +133,7 @@ The service is built using the Go ( version 1.20 ) programming language. No othe
 ## DISCLAIMER
 This is not official software from SITA. It was built as a learning exercise to learn the Go programming language, using a real world problem that I am familiar with. <br/>
 No support or warranty should be inferred. There is no gaurantee for fitness of purpose<br/>
-No endorsement of this software bt SITA should be inferred <br/>
+No endorsement of this software be SITA should be inferred <br/>
 The information on using the SITA AMS API was obtained from publicly available information<br/>
 
 <!-- GETTING STARTED -->
@@ -146,7 +149,7 @@ The service does *not* require any additional software componets. The service _s
 
 1. To install and start as a Windows Service. Must be logged on with Administrator privelege
    ```cmd
-   C:\ProgramFiles\opapi\opapi.exe uninstall
+   C:\ProgramFiles\opapi\opapi.exe install
    C:\ProgramFiles\opapi\opapi.exe start
    ```
 2. To stop the windows service and uninstall. Must be logged on with Administrator privelege
@@ -423,14 +426,58 @@ An example of the conents of the service.json file is shown below
 
 # Running in Demonstrration Mode
 
+   ```cmd
+   C:\ProgramFiles\opapi\opapi.exe demo
+   ```
+
 ## Seeding Demonstration Mode with Data
+   ```cmd
+   C:\ProgramFiles\opapi\opapiseeder.exe demo 5000 500 true
+   ```
 
 # Running in Performance Test Mode
+   ```cmd
+   C:\ProgramFiles\opapi\opapi.exe perfTest
+   ```
 
 ## Seeding Performance Test Mode with Data
+   ```cmd
+   C:\ProgramFiles\opapi\opapiseeder.exe perfTest 5000 500 true
+   ```
 
 ## Running with the Example Webhook Client
 
+The example WebHooks client program can act help demonstrate the functionn of the service by acting as a demonstration client.
+The client will receive Webhook updates from the service and log data on the received content of the message
+
+
+  - To log all received messages to files.
+   ```cmd
+   C:\ProgramFiles\opapi\webhookclient.exe run localhost:8082 log
+   ``` 
+
+  - To print out the first 500 characters of the message on the console
+   ```cmd
+   C:\ProgramFiles\opapi\webhookclient.exe run localhost:8082 debug
+   ``` 
+
+  - To print out the entire contents of the message on the console
+   ``` cmd
+   C:\ProgramFiles\opapi\webhookclient.exe run localhost:8082 trace
+   ``` 
+
+  - To print out a message received message on the console
+   ```cmd
+   C:\ProgramFiles\opapi\webhookclient.exe run localhost:8082
+   ``` 
+
+## Performance Characteristics
+
+### API Response Times
+
+### Memory Useage
+
+### GoLint 
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
