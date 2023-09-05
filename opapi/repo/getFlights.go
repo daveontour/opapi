@@ -432,7 +432,7 @@ NextFlight:
 
 func writeFlightResponseToFile(response models.Response, userProfile *models.UserProfile, statusOnly bool) (fileName string, e error) {
 
-	file, e := os.CreateTemp("", "getflighttemp-*.txt")
+	file, e := os.CreateTemp("", "getflighttemp-*.json")
 	if e != nil {
 		fmt.Println(e)
 		return
@@ -541,7 +541,8 @@ func writeFlightResponseToFile(response models.Response, userProfile *models.Use
 		return
 	}
 
-	e = models.WriteFlightsInJSON(fwb, response.ResponseFlights, userProfile, statusOnly)
+	maxFlights := 2
+	e = models.WriteFlightsInJSON(fwb, response.ResponseFlights, userProfile, statusOnly, maxFlights)
 	if e != nil {
 		return
 	}

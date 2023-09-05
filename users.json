@@ -14,12 +14,7 @@
             ],
             "AllowedCustomFields": [
                 "FlightUniqueID",
-                "Il--_DisembarkingFirstPad",
-                "Sh--_GroundHandler",
-                "Il--_TotalMalePax",
-                "S---_Terminal",
-                "S--G_DepartureStandType",
-                "*"
+                "SYS_ETA"
             ],
             "UserChangeSubscriptions": [
                 {

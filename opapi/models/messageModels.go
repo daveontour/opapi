@@ -441,19 +441,22 @@ func (d AllocationResponseItem) WriteJSON(fwb *bufio.Writer) error {
 
 	return nil
 }
-func WriteFlightsInJSON(fwb *bufio.Writer, flights []FlightResponseItem, userProfile *UserProfile, statusOnly bool) error {
+func WriteFlightsInJSON(fwb *bufio.Writer, flights []FlightResponseItem, userProfile *UserProfile, statusOnly bool, maxFlights int) error {
 	_, err := fwb.WriteString(`"Flights":[`)
 	if err != nil {
 		return err
 	}
 	for idx, currentNode := range flights {
+		if idx > maxFlights {
+			break
+		}
 		if idx > 0 {
 			err = fwb.WriteByte(',')
 			if err != nil {
 				return err
 			}
 		}
-		err = (currentNode.FlightPtr).WriteJSON(fwb, userProfile, statusOnly)
+		err = currentNode.FlightPtr.WriteJSON(fwb, userProfile, statusOnly)
 		if err != nil {
 			return err
 		}

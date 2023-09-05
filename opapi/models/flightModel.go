@@ -34,8 +34,7 @@ func (d *FlightId) WriteJSON(fwb *bufio.Writer) error {
 	_, err := fwb.WriteString("\"FlightId\":{" +
 		"\"FlightKind\":\"" + d.FlightKind + "\"," +
 		"\"FlightNumber\":\"" + d.FlightNumber + "\"," +
-		"\"ScheduledDate\":\"" + string(d.ScheduledDate) + "\"" +
-		"}")
+		"\"ScheduledDate\":\"" + string(d.ScheduledDate) + "\"")
 
 	if err != nil {
 		return err
@@ -99,8 +98,7 @@ func (d *FlightId) MarshalJSON() ([]byte, error) {
 	fwb.WriteString("{" +
 		"\"FlightKind\":\"" + d.FlightKind + "\"," +
 		"\"FlightNumber\":\"" + d.FlightNumber + "\"," +
-		"\"ScheduledDate\":\"" + string(d.ScheduledDate) + "\"" +
-		"}")
+		"\"ScheduledDate\":\"" + string(d.ScheduledDate) + "\"")
 
 	if d.AirportCode != nil {
 		fwb.WriteString(",\"AirportCode\":{")
@@ -1015,7 +1013,7 @@ func (d *FlightState) WriteJSON(fwb *bufio.Writer, userProfile *UserProfile) err
 	if err != nil {
 		return err
 	}
-	_, err = fwb.WriteString("\"CheckInSlots\":")
+	_, err = fwb.WriteString(",\"CheckInSlots\":")
 	if err != nil {
 		return err
 	}
