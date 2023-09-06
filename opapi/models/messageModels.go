@@ -407,6 +407,36 @@ func (d ResourceResponse) WriteJSON(fwb *bufio.Writer) (err error) {
 	return nil
 }
 
+func WriteJSONConfiguredResources(fwb *bufio.Writer, d ResourceResponse) (err error) {
+
+	_, err = fwb.WriteString("{" +
+		"\"Airport\":\"" + d.AirportCode + "\"," +
+		"\"ResourceType\":\"" + d.ResourceType + "\"")
+	if err != nil {
+		return
+	}
+
+	_, err = fwb.WriteString(",\"ConfiguredResources\": [")
+	if err != nil {
+		return
+	}
+
+	for idx, a := range d.ConfiguredResources {
+		if idx > 0 {
+			_, err = fwb.WriteString(",")
+			if err != nil {
+				break
+			}
+		}
+		fwb.WriteString("{\"ResourceType\":\"" + a.ResourceTypeCode + "\",\"ResourceName\":\"" + a.Name + "\",\"Area\":\"" + a.Area + "\"}")
+	}
+	_, err = fwb.WriteString("]}")
+	if err != nil {
+		return
+	}
+
+	return nil
+}
 func (d AllocationResponseItem) WriteJSON(fwb *bufio.Writer) error {
 
 	_, err := fwb.WriteString("{" +
@@ -418,18 +448,18 @@ func (d AllocationResponseItem) WriteJSON(fwb *bufio.Writer) error {
 		"\"Flight\": {" +
 		"\"FlightID\":\"" + d.AllocationItem.FlightID + "\"," +
 		"\"Direction\":\"" + d.AllocationItem.Direction + "\"," +
-		"\"Route\":\"" + d.AllocationItem.Route + "\",")
+		"\"Route\":\"" + d.AllocationItem.Route + "\"")
 	if err != nil {
 		return err
 	}
 	if d.AllocationItem.AircraftRegistration != "" {
-		_, err = fwb.WriteString("\"AircraftRegistration\":\"" + d.AllocationItem.AircraftRegistration + "\",")
+		_, err = fwb.WriteString(",\"AircraftRegistration\":\"" + d.AllocationItem.AircraftRegistration + "\"")
 		if err != nil {
 			return err
 		}
 	}
 	if d.AllocationItem.AircraftType != "" {
-		_, err = fwb.WriteString("\"AircraftType\":\"" + d.AllocationItem.AircraftType + "\"")
+		_, err = fwb.WriteString(",\"AircraftType\":\"" + d.AllocationItem.AircraftType + "\"")
 		if err != nil {
 			return err
 		}

@@ -380,7 +380,7 @@ func executeScheduledPushWorker(id int, jobs <-chan models.SchedulePushJob) {
 
 		if strings.ToLower(job.Sub.SubscriptionType) == "flight" {
 			flightresponse, serr := GetRequestedFlightsSub(job.Sub, job.UserToken)
-			if serr.Err != nil {
+			if serr.Err == nil {
 				fileName, err = writeFlightResponseToFile(flightresponse, job.UserProfile, "-1", true)
 			} else {
 				err = serr.Err
@@ -396,17 +396,17 @@ func executeScheduledPushWorker(id int, jobs <-chan models.SchedulePushJob) {
 
 		}
 
-		if err != nil {
-			globals.Logger.Error(fmt.Errorf("Error in executeScheduledPushWorker %s", err))
-			return
-		}
-
 		defer func() {
 			err := os.Remove(fileName)
 			if err != nil {
 				globals.Logger.Error(fmt.Errorf("Error in executeScheduledPushWorker deleting temp file %s", err))
 			}
 		}()
+
+		if err != nil {
+			globals.Logger.Error(fmt.Errorf("Error in executeScheduledPushWorker %s", err))
+			return
+		}
 
 		//Send to RabbitMQ if configured and enabled
 		if job.Sub.PublishStatusRabbitMQConnectionString != "" &&

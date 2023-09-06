@@ -1746,7 +1746,7 @@ func (f Flight) GetFlightRoute() string {
 
 	for _, rp := range f.FlightState.Route.ViaPoints.RouteViaPoint {
 		for _, ap := range rp.AirportCode {
-			if idx > 0 {
+			if idx > 0 && ap.CodeContext == "IATA" {
 				sb.WriteString(",")
 			}
 

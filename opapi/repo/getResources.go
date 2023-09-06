@@ -108,25 +108,25 @@ func getResourcesCommon(apt, flightID, airline, resourceType, resource, from, to
 	if resourceType != "" {
 		response.ResourceType = resourceType
 	} else {
-		response.ResourceType = "All Resource Types"
+		response.ResourceType = "*"
 	}
 
 	if resource != "" {
 		response.ResourceID = resource
 	} else {
-		response.ResourceID = "All"
+		response.ResourceID = "*"
 	}
 
 	if flightID != "" {
 		response.FlightID = flightID
 	} else {
-		response.FlightID = "All Flights"
+		response.FlightID = "*"
 	}
 
 	if airline != "" {
 		response.Airline = airline
 	} else {
-		response.Airline = "All Airlines"
+		response.Airline = "*"
 	}
 
 	if resourceType != "" && !strings.Contains(strings.ToLower("Checkin Gate Stand Carousel Chute Checkins Gates Stands Carousels Chutes"), strings.ToLower(resourceType)) {
@@ -355,7 +355,7 @@ func GetConfiguredResources(c *gin.Context) {
 	globals.RequestLogger.Info(fmt.Sprintf("User: %s IP: %s Request:%s", userProfile.UserName, c.RemoteIP(), c.Request.RequestURI))
 
 	apt := c.Param("apt")
-	resourceType := c.Param("resourceType")
+	resourceType := c.Query("resourceType")
 
 	// Create the response object so we can return early if required
 	response := models.ResourceResponse{}
@@ -364,7 +364,7 @@ func GetConfiguredResources(c *gin.Context) {
 	if resourceType != "" {
 		response.ResourceType = resourceType
 	} else {
-		response.ResourceType = "All Resources"
+		response.ResourceType = "*"
 	}
 
 	if resourceType != "" && !strings.Contains(strings.ToLower("Checkin Gate Stand Carousel Chute Checkins Gates Stands Carousels Chutes"), strings.ToLower(resourceType)) {
@@ -450,7 +450,7 @@ func GetConfiguredResources(c *gin.Context) {
 	// Get the filtered and pruned flights for the request
 	//response, err = filterFlights(request, response, repoMap[apt].Flights, c)
 
-	file, errs := os.CreateTemp("", "getresourcettemp-*.txt")
+	file, errs := os.CreateTemp("", "getresourcettemp-*.json")
 	if errs != nil {
 		fmt.Println(errs)
 		return
@@ -458,11 +458,10 @@ func GetConfiguredResources(c *gin.Context) {
 	fwb := bufio.NewWriterSize(file, 32768)
 	defer os.Remove(file.Name())
 
-	error := response.WriteJSON(fwb)
-	error2 := fwb.WriteByte('}')
+	error := models.WriteJSONConfiguredResources(fwb, response)
 	error3 := fwb.Flush()
 
-	if error == nil && error2 == nil && error3 == nil {
+	if error == nil && error3 == nil {
 		c.Writer.Header().Set("Content-Type", "application/json")
 		c.File(file.Name())
 	} else {
@@ -478,15 +477,12 @@ func GetConfiguredResources(c *gin.Context) {
 
 func writeResourceResponseToFile(response models.ResourceResponse, userProfile *models.UserProfile) (fileName string, e error) {
 
-	file, errs := os.CreateTemp("", "getresourcettemp-*.txt")
+	file, errs := os.CreateTemp("", "getresourcettemp-*.json")
 	if errs != nil {
 		fmt.Println(errs)
 		return
 	}
 	defer file.Close()
-
-	// Create the response object so we can return early if required
-	fmt.Println("Temporary RESOURCE file created : ", file.Name())
 
 	fwb := bufio.NewWriterSize(file, 32768)
 	// defer func() {

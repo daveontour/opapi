@@ -6,9 +6,10 @@
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-  <a href="https://github.com/othneildrew/Best-README-Template">
+ <!-- <a href="https://github.com/othneildrew/Best-README-Template">
     <img src="images/logo.png" alt="Logo" width="80" height="80">
   </a>
+  -->
 
   <h3 align="center">Get Flights and Resources REST API for SITA AMS 6.6 and 6.7</h3>
   <h4 align="center">Including Webhooks and RabbitMQ distribution of updates and scheduled refreshes</h4>
@@ -17,13 +18,7 @@
   <p align="center">
     A Rest API service and notification service for SITA AMS
     <br />
-    <a href="https://github.com/daveontour/opapi">**Explore the docs »**</a>
-    <br />
-    <br />
-    <a href="https://github.com/daveontour/opapi">View Demo</a>
-    ·
     <a href="https://github.com/daveontour/opapi/issues">Report Bug</a>
-    ·
     <a href="https://github.com/daveontour/opapi/issues">Request Feature</a>
   </p>
 </div>
@@ -43,11 +38,15 @@
     <li>
       <a href="#getting-started">Getting Started</a>
       <ul>
-        <li><a href="#prerequisites">Prerequisites</a></li>
+        <li><a href="#installation-and-execution">Installation and Execution</a></li>
         <li><a href="#installation">Installation</a></li>
       </ul>
     </li>
-    <li><a href="#usage">Usage</a></li>
+    <li><a href="#usage-and-api-reference">Usage and API Reference</a></li>
+    <ul>
+        <li><a href="#installation-and-execution">Installation and Execution</a></li>
+        <li><a href="#/getflights/[airport]?{options}&{options..}">/getFlights</a></li>
+    </ul>
     <li><a href="#roadmap">Roadmap</a></li>
     <li><a href="#contributing">Contributing</a></li>
     <li><a href="#license">License</a></li>
@@ -70,11 +69,14 @@ SITA AMS has a set of APIs that is quite comprehensive, however:
 * The data is provided in a format not easily used with modern frameworks
 * They have limited capability to refine the search for particular data
 * Response time of the API can be affected by other operations taking place on the AMS Server
-* All users recieve the same data from the API, regardless of any sensitivities
+* All users receive the same data from the API, regardless of any sensitivities
+* The granularity of notifaction messages is very coarse
 
 This project addreses these issues by introducing a Restful API Server to service user requests. <br/>
-The service loads and caches flights from AMS and then continually listed for updates to update the cache. The service exposes an API to retrieve flights and to retrieve the allocation of resources out of the cache without needing to go to AMS. Users can provide identity information in their API request to recieve a customised set of data or if no identity is provided, then they will receive a default set of publicly available data<br/>
-<br/>
+The service loads and caches flights from AMS and then continually listens for update notification from AMS to maintain the cache. Periodically, the service "advances" the window operating times of flights in the cache by requesting data from AMS. At the same time the service prunes old flights from the cache by removing flights that have fallen out of the window of configured flight operating times<br/>
+
+ The service exposes an API to retrieve flights and to retrieve the allocation of resources out of the cache without needing to go to AMS. Users can provide identity information in their API request to recieve a customised set of data or if no identity is provided, then they will receive a default set of publicly available data<br/>
+
 The service also provides Push notification of changes and regular scheduled updates to subscribers via a WebHooks mechanism or via a RabbitMQ Exchange
 
 
@@ -92,11 +94,16 @@ The service also provides Push notification of changes and regular scheduled upd
  - Do not introduce any new infrastructure components not already present in a typical AMS setup
  - Limit administration tasks to configuration only.
  - Include the tools to test performance and demonstrate capability
+ - Provide a change notification service where users can define the types of changes they are interested in
+ - Provide a no configuration change notification service for annonymous users
 
-In addition to the main service (opapi.exe) project includes two utility programs:
+In addition to the main service (opapi.exe) project includes three utility programs:
 
 - **opapiseeder.exe** This utility is used to seed the serive with demonstration flights and allocation when the servoce is run in Demonstration or Performance Test Mode
-- **webhookclient.exe** The service has the ability to seed change notifications and status updates via a WebHooks implementation. This program allows you to run a demonstration webhook client to deomonstate this capability 
+- **webhookclient.exe** The service has the ability to send change notifications and status updates via a WebHooks implementation. This program allows you to run a demonstration webhook client to deomonstate this capability
+- **rabbitclient.exe** Same functionality as the webhookclient except for RabbitMQ clients
+- **perftestclient.exe** This utility allows the response time performance of the API to be tested over a period of time by making repeated call to the API and recording response times
+
 ### Built With
 
 The service is built using the Go ( version 1.20 ) programming language. No other runtime software components are require other than the service itself
@@ -121,7 +128,7 @@ To run the service, either download the latest release, or clone this repository
 ### Installation and Execution
 
 The API service can be installed to run as a windows service or from the Windows command line prompt <br/>
-The service does *not* require any additional software componets. The service _self hosts_ itself according the the configuration in _*service.json*_ 
+The service does *not* require any additional software componets. The service _self hosts_ itself according the the configuration in _*service.json*_ file
 
 1. To install and start as a Windows Service. Must be logged on with Administrator privelege
    ```cmd
@@ -141,15 +148,297 @@ The service does *not* require any additional software componets. The service _s
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
+## Sample Output
 
-<!-- USAGE EXAMPLES -->
-## Usage
+[Get Flights Response Sample][getflights-sample-url]
 
-Use this space to show useful examples of how a project can be used. Additional screenshots, code examples and demos work well in this space. You may also link to more resources.
+## Usage and API Reference
 
-_For more examples, please refer to the [Documentation](https://example.com)_
+ This service exposes three API endpoints to retreive data on flights, resource allocations and configured resources:
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+ * /getFlights
+ * /getAllocations
+ * /getConfiguredResources
+
+The APIs are accessed via HTTP GET Requests and return data in JSON format
+
+#### Request Header
+The HTTP Get request header should include a parameter called "Token". <br />
+The value of "Token" is assigned by the system administrator to identify your user profile which defines your rights and capabilities to acces the APIs
+
+If the token header is not present, you will be assigned the rights of the "default user", if one is configured by the administrator
+
+
+## /getFlights/[Airport]?{options}&{options..}
+Retreive flight details
+
+|Parameter|Description|Example|
+|----|----------|-----|
+|Airport|Three letter IATA airport code to the desired airport|/getFlights/APT|
+|al or airline|Two letter IATA code for the airline, eg. BA, DL, LH, MH (default: all airlines)|/getFlights/APT?al=QF|
+|flt or flight|Flight Number, eg. QF001, EK23, BA007 (default: all flights|/getFlights/APT?flt=QF001|
+|d or direction|The direction of flight relative to the home airport. either 'Arr' or 'Dep'|/getFlights/APT?d=Arr|
+|r or route|The route of the flight|/getFlights/APT?r=MEL|
+|from|Number of hours relative to 'now' for the earliest scheduled time of operation for the flight, eg. -3 (default: -12|/getFlights/APT?from=-12|
+|to|Number of hours relative to 'now' for the latest scheduled time of operation for the flight, eg. 12 (default: 24)|/getFlights/APT?to=48|
+|updatedSince|Return records that have been updated from the date, e.g. 2023-07-16T13:00:00|/getFlights/APT?upatedSince=2023-07-16T13:00:0|
+|{custom field name}|Return records have the specified custom field name equal to the specified value|/getFlights/APT?Sh--_GroundHandler=EAS|
+|max|Limit the total number of flights returned to the number specified|/getFlights/APT?max=5|
+
+
+### Examples 
+
+  Find the flights from now until 12 hours from now<br />
+  **/getFlights/APT?from=0&amp;to=12**<br />
+
+  Find the Qantas flights from now until 12 hours from now<br />
+  **/getFlights/APT?al=QF&amp;from=0&amp;to=12**<br />
+
+  Find the flights arriving from Melbourne<br />
+  **/getFlights/APT?route=MEL&amp;d=Arr**<br />
+
+  Find all the flight where the custom field name **Sh--_GroundHandler** of the assigned flight is  EAS<br />
+  **/getFlights/APT?Sh--_GroundHandler=EAS**<br />
+
+[Get Flights Response Sample][getflights-sample-url]
+
+## /getAllocations/[Airport]?{options}
+Retreive flights allocated to resources
+
+|Parameter|Description|Example|
+|----|----------|-----|
+|**Airport**|Three letter IATA airport code to the desired airport|/getAllocations/APT|
+|**flt or flight**|Flight Number, eg. QF001, EK23, BA007 (default: all flights)|/getAllocations/APT?flt=QF001|
+|**al or airline**|Two letter IATA code for the airline, eg. BA, DL, LH, MH (default: all airlines|/getAllocations/APT?flt=QF|
+|**rt or resourceType**|One of CheckIn, Gate, Stand, Carousel, Chute. (default: all types are returned)|getAllocations/APT?rt=Gate|
+|**id or resource**|The name of the individual reource to query. Query must include the resourceType parameter (default: all resources)|/getAllocations/APT?rt=Gate&amp;id=100|
+|**from**|Number of hours relative to 'now' to start looking for allocations, eg. -3 (default:-12)|getAllocations/APT?from=-12|
+|**to**|Number of hours relative to 'now' to stop looking for allocations, eg. 12 (default: 24)|getResources/APT?to=7|
+|**sort**|Either "resource" or "time" to specify the sort order of the allocations returned (default: resource)|/getAllocations/APT?sort=time|
+|**updatedSince**|Return records that have been updated from the date, e.g. 2023-07-16T13:00:00|/getAllocations/APT?upatedSince=2023-07-16T13:00:00|
+
+
+
+### Examples
+
+  Find the flights allocated to checkin desk 100 from now until 12 hours from now<br />
+    **/getResources/APT?from=0&amp;to=12&amp;rt=CheckIn&amp;id=100**<br />
+    <br />
+    Find all the resources allocated to flight QF100<br />
+    **/getResources/APT?flt=QF100**<br />
+    <br />
+    Find all the resources allocated to Emirates (EK)<br />
+    **/getResources/APT?al=EK**<br />
+    <br />
+    Find all the resources allocated to British Airways (BA) for the next 3 days<br />
+    **/getResources/APT?al=BA&amp;from=0&amp;to=72**<br />
+    <br />
+    Find all the resources where the custom field name **Sh--_GroundHandler** of the assigned flight is
+    EAS<br />
+    **/getResources/APT?Sh--_GroundHandler=EAS**
+  
+## /getConfiguredResources/[Airport]/{ResourceType}
+Retreive the configured resources for the airport
+
+|Parameter|Description|Example|
+|----|----------|-----|
+|**Airport**|Three letter IATA airport code to the desired airport|/getConfiguredResources/APT|
+|**{Resource Type}**|One of CheckIn, Gate, Stand, Carousel, Chute. (default: all types are returned)|/getConfiguredResources/APT/Gate|
+
+
+## Sample Outputs
+
+
+
+
+# Configuring the Service
+
+The execution of the service is controlled by the configuration in the file **service.json** in the directory the application is installed in.
+An example of the conents of the service.json file is shown below
+
+~~~json
+{
+    "ServiceName": "GetFlightAndResourceService",
+    "ServiceDisplayName": "GetFlight and Resource Rest API",
+    "ServiceDescription": "A  HTTP/JSON  Rest Service for retrieving flights and resource allocations from AMS",
+    "ServiceIPport": "127.0.0.1:8081",
+    "ScheduleUpdateJob": "02:00:00",
+    "ScheduleUpdateJobIntervalInHours": 1,
+    "ScheduleUpdateJobIntervalInMinutes": -1,
+    "DebugService": true,
+    "TraceService": false,
+    "UseHTTPS": false,
+    "UseHTTPSUntrusted": false,
+    "KeyFile": "keyFile",
+    "CertFile": "certFile",
+    "TestHTTPServer": false,
+    "LogFile": "c:/Users/dave_/Desktop/Logs/process.log",
+    "RequestLogFile": "c:/Users/dave_/Desktop/Logs/request.log",
+    "MaxLogFileSizeInMB": 50,
+    "MaxNumberLogFiles": 3,
+    "EnableMetrics": true,
+    "MetricsLogFile": "c:/Users/dave_/Desktop/Logs/performance.log",
+    "AdminToken": "davewashere",
+    "NumberOfChangePushWorkers":7,
+    "NumberOfSchedulePushWorkers":5
+}
+~~~
+
+|Parameter|Description|Notes|
+|----|----------|----|
+|ServiceName|GetFlightAndResourceService||
+|ServiceDisplayName|e.g."GetFlight and Resource Rest API"||
+|ServiceDescription|"A  HTTP/JSON  Rest Service for retrieving flights and resource allocations from AMS||
+|ServiceIPport|127.0.0.1:8081||
+|ScheduleUpdateJob|02:00:00||
+|ScheduleUpdateJobIntervalInHours|The interval between running update jobs to update the repository from AMS in hours||
+|ScheduleUpdateJobIntervalInMinutes|The interval between running update jobs to update the repository from AMS in minutes|This is a seperate schedule to the one specified by the "hours" schedule |
+|DebugService|||
+|TraceService|||
+|UseHTTPS|||
+|UseHTTPSUntrusted|||
+|KeyFile|keyFile||
+|CertFile|certFile||
+|TestHTTPServer|||
+|LogFile|c:/Users/dave_/Desktop/Logs/process.log||
+|RequestLogFile|"c:/Users/dave_/Desktop/Logs/request.log||
+|MaxLogFileSizeInMB|Tee maximum size of the application log file||
+|MaxNumberLogFiles|||
+|EnableMetrics|true||
+|MetricsLogFile|c:/Users/dave_/Desktop/Logs/performance.log||
+|AdminToken|The header token to identify the user with administrator capability ||
+|NumberOfChangePushWorkers|||
+|NumberOfSchedulePushWorkers|||
+
+
+# Configuring Airports
+
+
+The execution of the service is controlled by the configuration in the file **airports.json** in the directory the application is installed in.
+An example of the conents of the service.json file is shown below
+~~~json
+{
+    "Repositories": [
+        {
+            "AMSAirport": "ABC",
+            "AMSToken": "0ab7d73d-e93a-480b-ba8c-a35943161cb0",
+            "AMSSOAPServiceURL": "http://localhost/SITAAMSIntegrationService/v2/SITAAMSIntegrationService",
+            "AMSRestServiceURL": "http://localhost/api/v1/",
+            "FlightSDOWindowMinimumInDaysFromNow": -3,
+            "FlightSDOWindowMaximumInDaysFromNow": 20,
+            "ListenerType":"MSMQ",
+            "NotificationListenerQueue": ".\\private$\\tow_tracker",
+            "LoadFlightChunkSizeInDays": 4,
+            "RabbitMQConnectionString": "amqp://amsauh:amsauh@localhost:5672/amsauh",
+            "RabbitMQExchange": "Test",
+            "RabbitMQTopic": "AMSX.Notify",
+            "PublishChangesRabbitMQConnectionString": "amqp://amsauh:amsauh@localhost:5672/amsauh",
+            "PublishChangesRabbitMQExchange": "Test",
+            "PublishChangesRabbitMQTopic": "AMSJSON.Notify"
+        },
+        {
+            "AMSAirport": "DEF",
+            "AMSToken": "0ab7d73d-e93a-480b-ba8c-a35943161cb0",
+            "AMSSOAPServiceURL": "http://localhost/SITAAMSIntegrationService/v2/SITAAMSIntegrationService",
+            "AMSRestServiceURL": "http://localhost/api/v1/",
+            "FlightSDOWindowMinimumInDaysFromNow": -3,
+            "FlightSDOWindowMaximumInDaysFromNow": 20,
+            "ListenerType":"MSMQ",
+            "NotificationListenerQueue": ".\\private$\\tow_tracker",
+            "LoadFlightChunkSizeInDays": 4,
+            "RabbitMQConnectionString": "amqp://amsauh:amsauh@localhost:5672/amsauh",
+            "RabbitMQExchange": "Test",
+            "RabbitMQTopic": "AMSX.Notify",
+            "PublishChangesRabbitMQConnectionString": "amqp://amsauh:amsauh@localhost:5672/amsauh",
+            "PublishChangesRabbitMQExchange": "Test",
+            "PublishChangesRabbitMQTopic": "AMSJSON.Notify"
+        }
+    ]
+}
+~~~
+
+
+
+# Configuring Users
+
+Access to the service can be controlled by tokens that are passed in the header of the request
+
+If the user does not provide a token for a valid configured user, then they are granted the access rights of the "default" user if configured. 
+
+
+## Configuring User Push Subscriptions
+
+A user can have zero, one or more push subscriptions configured. A push subscription will send the current state for a set of flights or resources configured in the subscription. The push will occur at regular intervals as defined in the subscription. The data is sent to either a WebHook endpoint and/or published to a RabbitMQ exchange as configured in the subscription. 
+
+## Configuring User Change Subscriptions
+
+# Running in Demonstrration Mode
+
+The service can be run in Demonstration Mode to allow usage and demonstration of the API capability **without** a connection to AMS. When run in demonstration mode, the service uses the configuration in the file testfiles\test.json to define the airport and the resources available at the airport. Flights and Allocation can be loaded into the system using the **opapiseeder.exe** program (see below) 
+
+   ```cmd
+   C:\ProgramFiles\opapi\opapi.exe demo
+   ```
+
+## Seeding Demonstration Mode with Data
+
+When the service is running in Demonstration Mode, it can be seeded with flight and resource allocation data by using the **opapiseeder.exe** program. 
+The program must be run on the same server as the main opapi service. An example is shown below 
+
+   ```cmd
+   C:\ProgramFiles\opapi\opapiseeder.exe demo 5000 500 true
+   ```
+
+In this example, the service is seeded with 5000 flights, with each flight having 500 custom field entries. The final "true" parameter indicates that the seeder should continue to run an produce random updates every 20 seconds. Setting this final parameter to "false" prevents these random updates. 
+
+**opapiseeder.exe** uses the configuration file testfiles\test.json to hold the configured resources and connection details for connecting to the main opapi service
+
+# Running in Performance Test Mode
+Performance Test Mode is very similar to Demonstration Mode, the exception being is that the flights are loaded and updated by the **opapiseeder.exe** program via a RabbitMQ interface, rather than a direct interface in Demonstration Mode. This allows closer approximation to a real life implementation than Demonstration Mode
+
+   ```cmd
+   C:\ProgramFiles\opapi\opapi.exe perfTest
+   ```
+
+## Seeding Performance Test Mode with Data
+   ```cmd
+   C:\ProgramFiles\opapi\opapiseeder.exe perfTest 5000 500 true
+   ```
+
+## Running with the Example Webhook Client
+
+The example WebHooks client program can act help demonstrate the functionn of the service by acting as a demonstration client.
+The client will receive Webhook updates from the service and log data on the received content of the message
+
+
+  - To log all received messages to files.
+   ```cmd
+   C:\ProgramFiles\opapi\webhookclient.exe run localhost:8082 log
+   ``` 
+
+  - To print out the first 500 characters of the message on the console
+   ```cmd
+   C:\ProgramFiles\opapi\webhookclient.exe run localhost:8082 debug
+   ``` 
+
+  - To print out the entire contents of the message on the console
+   ``` cmd
+   C:\ProgramFiles\opapi\webhookclient.exe run localhost:8082 trace
+   ``` 
+
+  - To print out a message received message on the console
+   ```cmd
+   C:\ProgramFiles\opapi\webhookclient.exe run localhost:8082
+   ``` 
+
+## Performance Characteristics
+
+### API Response Times
+
+### Memory Useage
+
+### GoLint 
+
 
 
 
@@ -212,260 +501,21 @@ Project Link: [https://github.com/daveontour/opapi](https://github.com/daveontou
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-## Useage and API Reference
-
- This service exposes three API endpoints to retreive data on flights, resource allocations and configured resources:
-
- * /getFlights
- * /getAllocations
- * /getConfiguredResources
-
-The APIs are accessed via HTTP GET Requests and return data in JSON format
-
-#### Request Header
-The HTTP Get request header should include a parameter called "Token". <br />
-The value of "Token" is assigned by the system administrator to identify your user profile which defines your rights and capabilities to acces the APIs
-
-If the token header is not present, you will be assigned the rights of the "default user", if one is configured by the administrator
-
-
-## /getFlights/[Airport]?{options}
-Retreive flight details
-
-|Parameter|Description|Example|
-|----|----------|-----|
-|Airport|Three letter IATA airport code to the desired airport|/getFlights/APT|
-|al or airline|Two letter IATA code for the airline, eg. BA, DL, LH, MH (default: all airlines)|/getFlights/APT?al=QF|
-|flt or flight|Flight Number, eg. QF001, EK23, BA007 (default: all flights|/getFlights/APT?flt=QF001|
-|d or direction|The direction of flight relative to the home airport. either 'Arr' or 'Dep'|/getFlights/APT?d=Arr|
-|r or route|The route of the flight|/getFlights/APT?r=MEL|
-|from|Number of hours relative to 'now' for the earliest scheduled time of operation for the flight, eg. -3 (default: -12|/getFlights/APT?from=-12|
-|to|Number of hours relative to 'now' for the latest scheduled time of operation for the flight, eg. 12 (default: 24)|/getFlights/APT?to=48|
-|updatedSince|Return records that have been updated from the date, e.g. 2023-07-16T13:00:00|/getFlights/APT?upatedSince=2023-07-16T13:00:0|
-|{custom field name}|Return records have the specified custom field name equal to the specified value|/getFlights/APT?Sh--_GroundHandler=EAS|
-
-
-### Examples 
-
-  Find the flights from now until 12 hours from now<br />
-  **/getFlights/APT?from=0&amp;to=12**<br />
-
-  Find the Qantas flights from now until 12 hours from now<br />
-  **/getFlights/APT?al=QF&amp;from=0&amp;to=12**<br />
-
-  Find the flights arriving from Melbourne<br />
-  **/getFlights/APT?route=MEL&amp;d=Arr**<br />
-
-  Find all the flight where the custom field name **Sh--_GroundHandler** of the assigned flight is  EAS<br />
-  **/getFlights/APT?Sh--_GroundHandler=EAS**<br />
-
-
-## /getAllocations/[Airport]?{options}
-Retreive flights allocated to resources
-
-|Parameter|Description|Example|
-|----|----------|-----|
-|**Airport**|Three letter IATA airport code to the desired airport|/getAllocations/APT|
-|**flt or flight**|Flight Number, eg. QF001, EK23, BA007 (default: all flights)|/getAllocations/APT?flt=QF001|
-|**al or airline**|Two letter IATA code for the airline, eg. BA, DL, LH, MH (default: all airlines|/getAllocations/APT?flt=QF|
-|**rt or resourceType**|One of CheckIn, Gate, Stand, Carousel, Chute. (default: all types are returned)|getAllocations/APT?rt=Gate|
-|**id or resource**|The name of the individual reource to query. Query must include the resourceType parameter (default: all resources)|/getAllocations/APT?rt=Gate&amp;id=100|
-|**from**|Number of hours relative to 'now' to start looking for allocations, eg. -3 (default:-12)|getAllocations/APT?from=-12|
-|**to**|Number of hours relative to 'now' to stop looking for allocations, eg. 12 (default: 24)|getResources/APT?to=7|
-|**sort**|Either "resource" or "time" to specify the sort order of the allocations returned (default: resource)|/getAllocations/APT?sort=time|
-|**updatedSince**|Return records that have been updated from the date, e.g. 2023-07-16T13:00:00|/getAllocations/APT?upatedSince=2023-07-16T13:00:00|
-
-
-### Examples
-
-  Find the flights allocated to checkin desk 100 from now until 12 hours from now<br />
-    **/getResources/APT?from=0&amp;to=12&amp;rt=CheckIn&amp;id=100**<br />
-    <br />
-    Find all the resources allocated to flight QF100<br />
-    **/getResources/APT?flt=QF100**<br />
-    <br />
-    Find all the resources allocated to Emirates (EK)<br />
-    **/getResources/APT?al=EK**<br />
-    <br />
-    Find all the resources allocated to British Airways (BA) for the next 3 days<br />
-    **/getResources/APT?al=BA&amp;from=0&amp;to=72**<br />
-    <br />
-    Find all the resources where the custom field name **Sh--_GroundHandler** of the assigned flight is
-    EAS<br />
-    **/getResources/APT?Sh--_GroundHandler=EAS**
-  
-## /getConfiguredResources/[Airport]/{ResourceType}
-Retreive the configured resources for the airport
-
-|Parameter|Description|Example|
-|----|----------|-----|
-|**Airport**|Three letter IATA airport code to the desired airport|/getConfiguredResources/APT|
-|**{Resource Type}**|One of CheckIn, Gate, Stand, Carousel, Chute. (default: all types are returned)|/getConfiguredResources/APT/Gate|
-
-
-# Configuring the Service
-
-The execution of the service is controlled by the configuration in the file **service.json** in the directory the application is installed in.
-An example of the conents of the service.json file is shown below
-
-~~~json
-{
-    "ServiceName": "GetFlightAndResourceService",
-    "ServiceDisplayName": "GetFlight and Resource Rest API",
-    "ServiceDescription": "A  HTTP/JSON  Rest Service for retrieving flights and resource allocations from AMS",
-    "ServiceIPport": "127.0.0.1:8081",
-    "ScheduleUpdateJob": "02:00:00",
-    "ScheduleUpdateJobIntervalInHours": 1,
-    "ScheduleUpdateJobIntervalInMinutes": -1,
-    "DebugService": true,
-    "TraceService": false,
-    "UseHTTPS": false,
-    "UseHTTPSUntrusted": false,
-    "KeyFile": "keyFile",
-    "CertFile": "certFile",
-    "TestHTTPServer": false,
-    "LogFile": "c:/Users/dave_/Desktop/Logs/process.log",
-    "RequestLogFile": "c:/Users/dave_/Desktop/Logs/request.log",
-    "MaxLogFileSizeInMB": 50,
-    "MaxNumberLogFiles": 3,
-    "EnableMetrics": true,
-    "MetricsLogFile": "c:/Users/dave_/Desktop/Logs/performance.log",
-    "AdminToken": "davewashere",
-    "NumberOfChangePushWorkers":7,
-    "NumberOfSchedulePushWorkers":5
-}
-~~~
-
-# Configuring Airports
-
-
-The execution of the service is controlled by the configuration in the file **airports.json** in the directory the application is installed in.
-An example of the conents of the service.json file is shown below
-~~~json
-{
-    "Repositories": [
-        {
-            "AMSAirport": "ABC",
-            "AMSToken": "0ab7d73d-e93a-480b-ba8c-a35943161cb0",
-            "AMSSOAPServiceURL": "http://localhost/SITAAMSIntegrationService/v2/SITAAMSIntegrationService",
-            "AMSRestServiceURL": "http://localhost/api/v1/",
-            "FlightSDOWindowMinimumInDaysFromNow": -3,
-            "FlightSDOWindowMaximumInDaysFromNow": 20,
-            "ListenerType":"MSMQ",
-            "NotificationListenerQueue": ".\\private$\\tow_tracker",
-            "LoadFlightChunkSizeInDays": 4,
-            "RabbitMQConnectionString": "amqp://amsauh:amsauh@localhost:5672/amsauh",
-            "RabbitMQExchange": "Test",
-            "RabbitMQTopic": "AMSX.Notify",
-            "PublishChangesRabbitMQConnectionString": "amqp://amsauh:amsauh@localhost:5672/amsauh",
-            "PublishChangesRabbitMQExchange": "Test",
-            "PublishChangesRabbitMQTopic": "AMSJSON.Notify"
-        },
-        {
-            "AMSAirport": "DEF",
-            "AMSToken": "0ab7d73d-e93a-480b-ba8c-a35943161cb0",
-            "AMSSOAPServiceURL": "http://localhost/SITAAMSIntegrationService/v2/SITAAMSIntegrationService",
-            "AMSRestServiceURL": "http://localhost/api/v1/",
-            "FlightSDOWindowMinimumInDaysFromNow": -3,
-            "FlightSDOWindowMaximumInDaysFromNow": 20,
-            "ListenerType":"MSMQ",
-            "NotificationListenerQueue": ".\\private$\\tow_tracker",
-            "LoadFlightChunkSizeInDays": 4,
-            "RabbitMQConnectionString": "amqp://amsauh:amsauh@localhost:5672/amsauh",
-            "RabbitMQExchange": "Test",
-            "RabbitMQTopic": "AMSX.Notify",
-            "PublishChangesRabbitMQConnectionString": "amqp://amsauh:amsauh@localhost:5672/amsauh",
-            "PublishChangesRabbitMQExchange": "Test",
-            "PublishChangesRabbitMQTopic": "AMSJSON.Notify"
-        }
-    ]
-}
-~~~
-
-# Configuring Users
-
-Access to the service can be controlled by tokens that are passed in the header of the request
-
-If the user does not provide a token for a valid configured user, then they are granted the access rights of the "default" user if configured. 
-
-
-## Configuring User Push Subsctiptions
-
-A user can have zero, one or more push subscriptions configured. A push subscription will send the current state for a set of flights or resources configured in the subscription. The push will occur at regular intervals as defined in the subscription. The data is sent to either a WebHook endpoint and/or published to a RabbitMQ exchange as configured in the subscription. 
-
-## Configuring User Change Subscriptions
-
-# Running in Demonstrration Mode
-
-   ```cmd
-   C:\ProgramFiles\opapi\opapi.exe demo
-   ```
-
-## Seeding Demonstration Mode with Data
-   ```cmd
-   C:\ProgramFiles\opapi\opapiseeder.exe demo 5000 500 true
-   ```
-
-# Running in Performance Test Mode
-   ```cmd
-   C:\ProgramFiles\opapi\opapi.exe perfTest
-   ```
-
-## Seeding Performance Test Mode with Data
-   ```cmd
-   C:\ProgramFiles\opapi\opapiseeder.exe perfTest 5000 500 true
-   ```
-
-## Running with the Example Webhook Client
-
-The example WebHooks client program can act help demonstrate the functionn of the service by acting as a demonstration client.
-The client will receive Webhook updates from the service and log data on the received content of the message
-
-
-  - To log all received messages to files.
-   ```cmd
-   C:\ProgramFiles\opapi\webhookclient.exe run localhost:8082 log
-   ``` 
-
-  - To print out the first 500 characters of the message on the console
-   ```cmd
-   C:\ProgramFiles\opapi\webhookclient.exe run localhost:8082 debug
-   ``` 
-
-  - To print out the entire contents of the message on the console
-   ``` cmd
-   C:\ProgramFiles\opapi\webhookclient.exe run localhost:8082 trace
-   ``` 
-
-  - To print out a message received message on the console
-   ```cmd
-   C:\ProgramFiles\opapi\webhookclient.exe run localhost:8082
-   ``` 
-
-## Performance Characteristics
-
-### API Response Times
-
-### Memory Useage
-
-### GoLint 
-
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
-[contributors-shield]: https://img.shields.io/github/contributors/othneildrew/Best-README-Template.svg?style=for-the-badge
-[contributors-url]: https://github.com/othneildrew/Best-README-Template/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/othneildrew/Best-README-Template.svg?style=for-the-badge
-[forks-url]: https://github.com/othneildrew/Best-README-Template/network/members
-[stars-shield]: https://img.shields.io/github/stars/othneildrew/Best-README-Template.svg?style=for-the-badge
-[stars-url]: https://github.com/othneildrew/Best-README-Template/stargazers
-[issues-shield]: https://img.shields.io/github/issues/othneildrew/Best-README-Template.svg?style=for-the-badge
-[issues-url]: https://github.com/othneildrew/Best-README-Template/issues
-[license-shield]: https://img.shields.io/github/license/othneildrew/Best-README-Template.svg?style=for-the-badge
-[license-url]: https://github.com/othneildrew/Best-README-Template/blob/master/LICENSE.txt
+[getflights-sample-url]: https://github.com/daveontour/opapi/tree/main/samples/GetFlights "Get Flight Response Sample"
+[contributors-url]: https://github.com/github_username/repo_name/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/github_username/repo_name.svg?style=for-the-badge
+[forks-url]: https://github.com/github_username/repo_name/network/members
+[stars-shield]: https://img.shields.io/github/stars/github_username/repo_name.svg?style=for-the-badge
+[stars-url]: https://github.com/github_username/repo_name/stargazers
+[issues-shield]: https://img.shields.io/github/issues/github_username/repo_name.svg?style=for-the-badge
+[issues-url]: https://github.com/github_username/repo_name/issues
+[license-shield]: https://img.shields.io/github/license/github_username/repo_name.svg?style=for-the-badge
+[license-url]: https://github.com/github_username/repo_name/blob/master/LICENSE.txt
 [linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
-[linkedin-url]: https://linkedin.com/in/othneildrew
+[linkedin-url]: https://linkedin.com/in/linkedin_username
 [product-screenshot]: images/screenshot.png
-[Go-url]: https://https://go.dev/
 [Next.js]: https://img.shields.io/badge/next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white
 [Next-url]: https://nextjs.org/
 [React.js]: https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB
