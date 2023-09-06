@@ -255,11 +255,6 @@ Retreive the configured resources for the airport
 |**{Resource Type}**|One of CheckIn, Gate, Stand, Carousel, Chute. (default: all types are returned)|/getConfiguredResources/APT/Gate|
 
 
-## Sample Outputs
-
-
-
-
 # Configuring the Service
 
 The execution of the service is controlled by the configuration in the file **service.json** in the directory the application is installed in.
@@ -447,6 +442,62 @@ Between these extremes, other users can be configured with appropriate access ri
 ## Configuring User Push Subscriptions
 
 A user can have zero, one or more push subscriptions configured. A push subscription will send the current state for a set of flights or resources configured in the subscription. The push will occur at regular intervals as defined in the subscription. The data is sent to either a WebHook endpoint and/or published to a RabbitMQ exchange as configured in the subscription. 
+
+~~~json
+{
+    "Users": [
+        {
+            "Enabled": true,
+            "UserName": "Airport Stakeholder",
+            "Key": "!@#$rtyuoiad6$$%",
+            "AllowedAirports": [
+                "ABC"
+            ],
+            "AllowedAirlines": [
+                "*"
+            ],
+            "AllowedCustomFields": [
+                "*",
+            ],
+            "UserChangeSubscriptions": [
+                {
+                    "Enabled": true,
+                    "EnableInDemoMode":false,
+                    "Airport": "APT",
+                    "CreateFlight": true,
+                    "DeleteFlight": true,
+                    "UpdateFlight": true, 
+                    "CheckInChange": true,
+                    "GateChange": true,
+                    "StandChange": true,
+                    "CarouselChange": true,
+                    "ChuteChange": true,
+                    "AircraftTypeOrRegoChange": true,
+                    "RouteChange": true,
+                    "LinkedFlightChange":true,
+                    "EventChange": true,
+                    "CustomFieldChange": [
+                        "SYS_ETA"
+                    ],
+                    "All":true,
+                    "DestinationURL": "http://localhost:8082/changeEndpoint",
+                    "TrustBadCertificates":true,
+                    "HeaderParameters": [
+                      {"Parameter":"UserDefinedKey_1", "Value":"Secret Provided By Receiving System"},
+                      {"Parameter":"UserDefinedKey_2", "Value":"Some Other Secret Provided By Receiving System"}
+                    ],
+                    "PublishChangesRabbitMQConnectionString": "amqp://amsauh:amsauh@localhost:5672/amsauh",
+                    "PublishChangesRabbitMQExchange": "Test",
+                    "PublishChangesRabbitMQTopic": "AMSJSON.Notify",
+                    "RMQEnabled":true,
+                    "HTTPEnabled":true
+                }
+            ],
+            "UserPushSubscriptions": []
+        },
+    ]
+}
+~~~
 
 ## Configuring User Change Subscriptions
 
