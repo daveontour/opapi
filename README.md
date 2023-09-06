@@ -97,7 +97,7 @@ The service also provides Push notification of changes and regular scheduled upd
  - Provide a change notification service where users can define the types of changes they are interested in
  - Provide a no configuration change notification service for annonymous users
 
-In addition to the main service (opapi.exe) project includes three utility programs:
+In addition to the main service (opapi.exe) project includes four utility programs:
 
 - **opapiseeder.exe** This utility is used to seed the serive with demonstration flights and allocation when the servoce is run in Demonstration or Performance Test Mode
 - **webhookclient.exe** The service has the ability to send change notifications and status updates via a WebHooks implementation. This program allows you to run a demonstration webhook client to deomonstate this capability
@@ -108,7 +108,7 @@ In addition to the main service (opapi.exe) project includes three utility progr
 
 The service is built using the Go ( version 1.20 ) programming language. No other runtime software components are require other than the service itself
 
-* [![Go][Go]][Go-url]
+* [Go Programming Language][go-url]
 
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -150,7 +150,16 @@ The service does *not* require any additional software componets. The service _s
 
 ## Sample Output
 
-[Get Flights Response Sample][getflights-sample-url]
+Responses to the Rest API request, change notifications and subscription notifications are provided in JSON format.
+API requests will include meta data in the message to describe the response. 
+Samples of the messages can be found at the links below 
+
+- [Get Flights Response Sample][getflights-sample-url]
+- [Flight Create Notification Sample][getflights-sample-url]
+- [Flight Create Notification Sample][createflight-sample-url]
+- [Flight Deleted Notification Sample][deleteflight-sample-url]
+- [Get Allocations Sample][getallocations-sample-url]
+- [Get Configured Resources Sample][getconfiguredresources-sample-url]
 
 ## Usage and API Reference
 
@@ -174,16 +183,16 @@ Retreive flight details
 
 |Parameter|Description|Example|
 |----|----------|-----|
-|Airport|Three letter IATA airport code to the desired airport|/getFlights/APT|
-|al or airline|Two letter IATA code for the airline, eg. BA, DL, LH, MH (default: all airlines)|/getFlights/APT?al=QF|
-|flt or flight|Flight Number, eg. QF001, EK23, BA007 (default: all flights|/getFlights/APT?flt=QF001|
-|d or direction|The direction of flight relative to the home airport. either 'Arr' or 'Dep'|/getFlights/APT?d=Arr|
-|r or route|The route of the flight|/getFlights/APT?r=MEL|
-|from|Number of hours relative to 'now' for the earliest scheduled time of operation for the flight, eg. -3 (default: -12|/getFlights/APT?from=-12|
-|to|Number of hours relative to 'now' for the latest scheduled time of operation for the flight, eg. 12 (default: 24)|/getFlights/APT?to=48|
-|updatedSince|Return records that have been updated from the date, e.g. 2023-07-16T13:00:00|/getFlights/APT?upatedSince=2023-07-16T13:00:0|
-|{custom field name}|Return records have the specified custom field name equal to the specified value|/getFlights/APT?Sh--_GroundHandler=EAS|
-|max|Limit the total number of flights returned to the number specified|/getFlights/APT?max=5|
+|**Airport**|Three letter IATA airport code to the desired airport|/getFlights/APT|
+|**al or airline**|Two letter IATA code for the airline, eg. BA, DL, LH, MH (default: all airlines)|/getFlights/APT?al=QF|
+|**flt or flight**|Flight Number, eg. QF001, EK23, BA007 (default: all flights|/getFlights/APT?flt=QF001|
+|**d or direction**|The direction of flight relative to the home airport. either 'Arr' or 'Dep'|/getFlights/APT?d=Arr|
+|**r or route**|The route of the flight|/getFlights/APT?r=MEL|
+|**from**|Number of hours relative to 'now' for the earliest scheduled time of operation for the flight, eg. -3 (default: -12|/getFlights/APT?from=-12|
+|**to**|Number of hours relative to 'now' for the latest scheduled time of operation for the flight, eg. 12 (default: 24)|/getFlights/APT?to=48|
+|**updatedSince**|Return records that have been updated from the date, e.g. 2023-07-16T13:00:00|/getFlights/APT?upatedSince=2023-07-16T13:00:0|
+|**{custom field name}**|Return records have the specified custom field name equal to the specified value. Users will only be able to search on the custom fields they have been granted access to. (see below)|/getFlights/APT?Sh--_GroundHandler=EAS|
+|**max**|Limit the total number of flights returned to the number specified|/getFlights/APT?max=5|
 
 
 ### Examples 
@@ -254,7 +263,7 @@ Retreive the configured resources for the airport
 # Configuring the Service
 
 The execution of the service is controlled by the configuration in the file **service.json** in the directory the application is installed in.
-An example of the conents of the service.json file is shown below
+An example of the contents of the service.json file is shown below
 
 ~~~json
 {
@@ -287,35 +296,36 @@ An example of the conents of the service.json file is shown below
 |Parameter|Description|Notes|
 |----|----------|----|
 |ServiceName|GetFlightAndResourceService||
-|ServiceDisplayName|e.g."GetFlight and Resource Rest API"||
-|ServiceDescription|"A  HTTP/JSON  Rest Service for retrieving flights and resource allocations from AMS||
-|ServiceIPport|127.0.0.1:8081||
+|ServiceDisplayName|The service display name e.g."GetFlight and Resource Rest API"||
+|ServiceDescription|The service description e.g. "A HTTP/JSON  Rest Service for retrieving flights and resource allocations from AMS"||
+|ServiceIPport|The IP address and port number for the service to bind to, e.g. 127.0.0.1:8081||
 |ScheduleUpdateJob|02:00:00||
 |ScheduleUpdateJobIntervalInHours|The interval between running update jobs to update the repository from AMS in hours||
 |ScheduleUpdateJobIntervalInMinutes|The interval between running update jobs to update the repository from AMS in minutes|This is a seperate schedule to the one specified by the "hours" schedule |
 |DebugService|||
 |TraceService|||
-|UseHTTPS|||
-|UseHTTPSUntrusted|||
+|UseHTTPS|Set to "true" to run the service using HTTPS. If true, then the KeyFile and CertFile paramters must be set |"false" by default|
+|UseHTTPSUntrusted|Set to true to run the service using HTTPS with a locally generated certificate||
 |KeyFile|keyFile||
 |CertFile|certFile||
 |TestHTTPServer|||
 |LogFile|c:/Users/dave_/Desktop/Logs/process.log||
 |RequestLogFile|"c:/Users/dave_/Desktop/Logs/request.log||
-|MaxLogFileSizeInMB|Tee maximum size of the application log file||
-|MaxNumberLogFiles|||
+|MaxLogFileSizeInMB|The maximum size of the application log file||
+|MaxNumberLogFiles|When the log file have reached their maximum size they will be archived. This parameter specifies how many archive logs to keep||
 |EnableMetrics|true||
 |MetricsLogFile|c:/Users/dave_/Desktop/Logs/performance.log||
 |AdminToken|The header token to identify the user with administrator capability ||
-|NumberOfChangePushWorkers|||
-|NumberOfSchedulePushWorkers|||
+|NumberOfChangePushWorkers|The number of worker Go processes for managing change notifications||
+|NumberOfSchedulePushWorkers|The number of worker Go processes for managing distribution of subscription updates|Maximum value should not exceed the total number of subscriptions|
 
 
 # Configuring Airports
 
 
-The execution of the service is controlled by the configuration in the file **airports.json** in the directory the application is installed in.
-An example of the conents of the service.json file is shown below
+Each airport to be serviced by the API service needs to be configured in the file **airports.json** in the directory the application is installed in. More than one airport can be configured. 
+
+An example of the contents of the service.json file is shown below
 ~~~json
 {
     "Repositories": [
@@ -357,20 +367,90 @@ An example of the conents of the service.json file is shown below
 }
 ~~~
 
-
+|Parameter|Description|Notes|
+|----|----------|----|
+|AMSAirport| "DEF"||
+|AMSToken| "0ab7d73d-e93a-480b-ba8c-a35943161cb0"||
+|AMSSOAPServiceURL| "http://localhost/SITAAMSIntegrationService/v2/SITAAMSIntegrationService"||
+|AMSRestServiceURL| "http://localhost/api/v1/"||
+|FlightSDOWindowMinimumInDaysFromNow| -3||
+|FlightSDOWindowMaximumInDaysFromNow| 20||
+|ListenerType|"MSMQ"||
+|NotificationListenerQueue| ".\\private$\\tow_tracker"||
+|LoadFlightChunkSizeInDays| 4||
+|RabbitMQConnectionString| "amqp://amsauh:amsauh@localhost:5672/amsauh"||
+|RabbitMQExchange| "Test"||
+|RabbitMQTopic| "AMSX.Notify"||
+|PublishChangesRabbitMQConnectionString| "amqp://amsauh:amsauh@localhost:5672/amsauh"||
+|PublishChangesRabbitMQExchange| "Test"||
+|PublishChangesRabbitMQTopic| "AMSJSON.Notify"||
 
 # Configuring Users
 
-Access to the service can be controlled by tokens that are passed in the header of the request
+Access to the service can be controlled by tokens that are passed in the header of the request. The configuration of the user controls the airports, airline and custom fields that the user has access to. The user configuration can also include subscription to update notification and change notifications. COnfiguration of users is in the **users.json** file
 
 If the user does not provide a token for a valid configured user, then they are granted the access rights of the "default" user if configured. 
 
+Below is an example of the **users.json** file with two users configured. 
 
+- The "Default User" has restricted access just the ABC and APT airports. They are also restricted to flight information on WY and QF flights. The AllowedCustomFields array defines the custom field data that will be returned to them if available; not other custom fields will be returned to the user. 
+- The second defined user, "Super User" has access to all airports, airlines and custome fields. The "*" in the configuration gives access to ALL.
+
+Between these extremes, other users can be configured with appropriate access rights configured for each user
+
+
+~~~json
+{
+    "Users": [
+        {
+            "Enabled": true,
+            "UserName": "Default User",
+            "Key": "default",
+            "AllowedAirports": [
+                "ABC", "APT"
+            ],
+            "AllowedAirlines": [
+                "WY",
+                "QF",
+            ],
+            "AllowedCustomFields": [
+                "FlightUniqueID",
+                "SYS_ETA",
+                "FlightUniqueID",
+                "Il--_DisembarkingFirstPad",
+                "Sh--_GroundHandler",
+                "Il--_TotalMalePax",
+                "S---_Terminal",
+            ],
+            "UserChangeSubscriptions": [],
+            "UserPushSubscriptions": []
+        },
+        {
+            "Enabled": true,
+            "UserName": "Super User",
+            "Key": "reallyhardtoguessstring!@#*&^",
+            "AllowedAirports": [
+                "*"
+            ],
+            "AllowedAirlines": [
+                "*"
+            ],
+            "AllowedCustomFields": [
+                "*",
+            ],
+            "UserChangeSubscriptions": [],
+            "UserPushSubscriptions": []
+        },
+    ]
+}
+~~~
 ## Configuring User Push Subscriptions
 
 A user can have zero, one or more push subscriptions configured. A push subscription will send the current state for a set of flights or resources configured in the subscription. The push will occur at regular intervals as defined in the subscription. The data is sent to either a WebHook endpoint and/or published to a RabbitMQ exchange as configured in the subscription. 
 
 ## Configuring User Change Subscriptions
+
+A user can have zero, one or more change notification subscriptions confiured. The change subscription defines the types of changes that the user in iterested in, e.g an aircraft type change, a flight delete, etc. When one of the interested changes occurs, the service will push the notification to the defined end point for the user. The defined end point can be a WebHooks client or a RabbitMQ Exchange 
 
 # Running in Demonstrration Mode
 
@@ -504,31 +584,9 @@ Project Link: [https://github.com/daveontour/opapi](https://github.com/daveontou
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
 [getflights-sample-url]: https://github.com/daveontour/opapi/tree/main/samples/GetFlights "Get Flight Response Sample"
-[contributors-url]: https://github.com/github_username/repo_name/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/github_username/repo_name.svg?style=for-the-badge
-[forks-url]: https://github.com/github_username/repo_name/network/members
-[stars-shield]: https://img.shields.io/github/stars/github_username/repo_name.svg?style=for-the-badge
-[stars-url]: https://github.com/github_username/repo_name/stargazers
-[issues-shield]: https://img.shields.io/github/issues/github_username/repo_name.svg?style=for-the-badge
-[issues-url]: https://github.com/github_username/repo_name/issues
-[license-shield]: https://img.shields.io/github/license/github_username/repo_name.svg?style=for-the-badge
-[license-url]: https://github.com/github_username/repo_name/blob/master/LICENSE.txt
-[linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
-[linkedin-url]: https://linkedin.com/in/linkedin_username
-[product-screenshot]: images/screenshot.png
-[Next.js]: https://img.shields.io/badge/next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white
-[Next-url]: https://nextjs.org/
-[React.js]: https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB
-[React-url]: https://reactjs.org/
-[Vue.js]: https://img.shields.io/badge/Vue.js-35495E?style=for-the-badge&logo=vuedotjs&logoColor=4FC08D
-[Vue-url]: https://vuejs.org/
-[Angular.io]: https://img.shields.io/badge/Angular-DD0031?style=for-the-badge&logo=angular&logoColor=white
-[Angular-url]: https://angular.io/
-[Svelte.dev]: https://img.shields.io/badge/Svelte-4A4A55?style=for-the-badge&logo=svelte&logoColor=FF3E00
-[Svelte-url]: https://svelte.dev/
-[Laravel.com]: https://img.shields.io/badge/Laravel-FF2D20?style=for-the-badge&logo=laravel&logoColor=white
-[Laravel-url]: https://laravel.com
-[Bootstrap.com]: https://img.shields.io/badge/Bootstrap-563D7C?style=for-the-badge&logo=bootstrap&logoColor=white
-[Bootstrap-url]: https://getbootstrap.com
-[JQuery.com]: https://img.shields.io/badge/jQuery-0769AD?style=for-the-badge&logo=jquery&logoColor=white
-[JQuery-url]: https://jquery.com 
+[createflight-sample-url]: https://github.com/daveontour/opapi/tree/main/samples/FlightCreateNotification "Flight Create Notification Sample"
+[updateflight-sample-url]: https://github.com/daveontour/opapi/tree/main/samples/FlightUpdateNotification "Flight Update Notification Sample"
+[deleteflight-sample-url]: https://github.com/daveontour/opapi/tree/main/samples/FlightDeleteNotification "Flight Deleted Notification Sample"
+[getallocations-sample-url]: https://github.com/daveontour/opapi/tree/main/samples/GetAllocations "Get Allocations Sample"
+[getconfiguredresources-sample-url]: https://github.com/daveontour/opapi/tree/main/samples/GetConfiguredResources "Get Configured Resources Sample"
+[go-url]: https://go.dev/ "Go Programming Language"

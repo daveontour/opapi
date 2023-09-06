@@ -355,7 +355,7 @@ func GetConfiguredResources(c *gin.Context) {
 	globals.RequestLogger.Info(fmt.Sprintf("User: %s IP: %s Request:%s", userProfile.UserName, c.RemoteIP(), c.Request.RequestURI))
 
 	apt := c.Param("apt")
-	resourceType := c.Query("resourceType")
+	resourceType := c.Param("resourceType")
 
 	// Create the response object so we can return early if required
 	response := models.ResourceResponse{}
