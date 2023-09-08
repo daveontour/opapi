@@ -33,6 +33,7 @@ type Response struct {
 	Warnings         []string             `json:"Warnings,omitempty"`
 	Errors           []string             `json:"Errors,omitempty"`
 	ResponseFlights  []FlightResponseItem `json:"Flights,omitempty"`
+	TotalFlights     int
 }
 type ResourceResponse struct {
 	User                string                           `json:"User,omitempty"`

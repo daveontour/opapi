@@ -83,6 +83,12 @@ func GetRequestedFlightsAPI(c *gin.Context) {
 	}
 
 	max := c.Query("max")
+	tf := c.Query("tf")
+	totalFlights := -1
+	if tf == "true" {
+		totalFlights = GetRepo(apt).FlightLinkedList.Len()
+	}
+	response.TotalFlights = totalFlights
 	fileName, err2 := writeFlightResponseToFile(response, &userProfile, max, true)
 
 	if err2 == nil {
@@ -461,6 +467,10 @@ func writeFlightResponseToFile(response models.Response, userProfile *models.Use
 		"\"NumberOfFlights\":\"" + fmt.Sprintf("%v", response.NumberOfFlights) + "\",")
 	if e != nil {
 		return
+	}
+
+	if response.TotalFlights > 0 {
+		_, e = fwb.WriteString("\"TotalFlights\":\"" + fmt.Sprintf("%v", response.TotalFlights) + "\",")
 	}
 
 	if response.Airline != "" {

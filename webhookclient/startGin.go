@@ -30,12 +30,7 @@ var Loc *time.Location
 var wg sync.WaitGroup
 
 var rootCmd = &cobra.Command{
-	Use:   "webhookstestclient",
-	Short: `webhookstestclient is a CLI to run and manage the webhooks test client`,
-	Long:  "webhookstestclient is a CLI to run and manage the webhooks test client",
-}
-var runCmd = &cobra.Command{
-	Use:   "run {server:port}",
+	Use:   "webhookclient.exe {server:port} {log, trace or debug}",
 	Short: `Start the Webhooks test client`,
 	Long:  `Start the Webhooks test client`,
 	Run: func(cmds *cobra.Command, args []string) {
@@ -55,9 +50,8 @@ var runCmd = &cobra.Command{
 }
 
 func InitCobraTestClient() {
-	rootCmd.CompletionOptions.DisableDefaultCmd = true
-	runCmd.PersistentFlags().BoolVarP(&UseHTTPS, "https", "s", false, "Use HTTPS")
-	rootCmd.AddCommand(runCmd)
+	rootCmd.CompletionOptions.DisableDefaultCmd = false
+	rootCmd.PersistentFlags().BoolVarP(&UseHTTPS, "https", "s", false, "Use HTTPS")
 
 	Loc, _ = time.LoadLocation("Local")
 

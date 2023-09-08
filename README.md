@@ -538,29 +538,47 @@ Performance Test Mode is very similar to Demonstration Mode, the exception being
 
 ## Running with the Example Webhook Client
 
-The example WebHooks client program can act help demonstrate the functionn of the service by acting as a demonstration client.
+The example WebHooks client program can act help demonstrate the function of the service by acting as a demonstration client.
 The client will receive Webhook updates from the service and log data on the received content of the message
 
 
   - To log all received messages to files.
    ```cmd
-   C:\ProgramFiles\opapi\webhookclient.exe run localhost:8082 log
+   C:\ProgramFiles\opapi\webhookclient.exe localhost:8082 log
    ``` 
 
   - To print out the first 500 characters of the message on the console
    ```cmd
-   C:\ProgramFiles\opapi\webhookclient.exe run localhost:8082 debug
+   C:\ProgramFiles\opapi\webhookclient.exe localhost:8082 debug
    ``` 
 
   - To print out the entire contents of the message on the console
    ``` cmd
-   C:\ProgramFiles\opapi\webhookclient.exe run localhost:8082 trace
+   C:\ProgramFiles\opapi\webhookclient.exe localhost:8082 trace
    ``` 
 
-  - To print out a message received message on the console
+## Running with the Example RabbitMQ Client
+
+The example Rabbit MQ client program can act help demonstrate the function of the service by acting as a demonstration client.
+The client will receive Webhook updates from the service and log data on the received content of the message
+
+The parameters are: {RMQ Connection String} {RMQ Exchange} {RMQ Subscription Topic} {RMQ Change Topic} {Log Mode} 
+
+  - To log all received messages to files.
    ```cmd
-   C:\ProgramFiles\opapi\webhookclient.exe run localhost:8082
+   C:\ProgramFiles\opapi\rabbitclient.exe amqp://rabbituser:rabbitpass@localhost:5672/rabbitvirtualhost Test AMSJSON.Status AMSJSON.Notify Log
    ``` 
+
+  - To print out the first 500 characters of the message on the console
+   ```cmd
+   C:\ProgramFiles\opapi\rabbitclient.exe amqp://rabbituser:rabbitpass@localhost:5672/rabbitvirtualhost Test AMSJSON.Status AMSJSON.Notify Debug
+   ``` 
+
+  - To print out the entire contents of the message on the console
+   ``` cmd
+   C:\ProgramFiles\opapi\rabbitclient.exe amqp://rabbituser:rabbitpass@localhost:5672/rabbitvirtualhost Test AMSJSON.Status AMSJSON.Notify Trace
+   ``` 
+
 
 ## Performance Characteristics
 

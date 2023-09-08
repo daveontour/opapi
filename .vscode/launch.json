@@ -4,6 +4,7 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+
         {
             "name": "Launch Package",
             "type": "go",
@@ -11,7 +12,10 @@
             "mode": "auto",
             "program": "${fileDirname}",
             "cwd":  "${fileDirname}/../..",
-            "args" :["run"]
+          //  "args" :["http://localhost:8081/getFlights/AUH?tf=true", "true", "1", "C:/Users/dave_/Desktop/log.csv"]
+          "args" :["amqp://amsauh:amsauh@localhost:5672/amsauh", "Test", "AMSJSON.Status", "AMSJSON.Notify", "Debug"]
+
+           
         }
     ]
 }

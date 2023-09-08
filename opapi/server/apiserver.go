@@ -81,14 +81,6 @@ func StartGinServer(demoMode bool) {
 		c.Header("Content-Type", "text/html")
 		_, _ = c.Writer.Write(data)
 	})
-	router.GET("/adminhelp", func(c *gin.Context) {
-		data, err := os.ReadFile("./adminhelp.htm")
-		if err != nil {
-			return
-		}
-		c.Header("Content-Type", "text/html")
-		_, _ = c.Writer.Write(data)
-	})
 
 	if demoMode {
 		//These endpoints are only started in Demo Mode and allow the service to be populated with data from the opapiseeder program
