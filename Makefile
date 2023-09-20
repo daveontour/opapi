@@ -1,6 +1,5 @@
 DESTDIR := C:\Users\dave_\Desktop\opapi
 
-
 build:
 #	-C:\Users\dave_\go/bin/golangci-lint.exe  run
 	go build -o $(DESTDIR)\opapi.exe .\opapi\main
@@ -19,3 +18,6 @@ clean:
 	del $(DESTDIR)\webhookclient.exe
 	del $(DESTDIR)\rabbitclient.exe
 	del $(DESTDIR)\perftestclient.exe
+
+lint: 
+	golangci-lint run

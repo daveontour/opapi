@@ -11,9 +11,18 @@ import (
 
 	_ "net/http/pprof"
 
+	//gctuner "github.com/cch123/gogctuner"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows/svc"
 )
+
+// func initProcess() {
+// 	var (
+// 		inCgroup = false
+// 		percent  = 0.80
+// 	)
+// 	go gctuner.NewTuner(inCgroup, percent)
+// }
 
 func main() {
 

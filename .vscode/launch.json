@@ -13,7 +13,8 @@
             "program": "${fileDirname}",
             "cwd":  "${fileDirname}/../..",
           //  "args" :["http://localhost:8081/getFlights/AUH?tf=true", "true", "1", "C:/Users/dave_/Desktop/log.csv"]
-          "args" :["amqp://amsauh:amsauh@localhost:5672/amsauh", "Test", "AMSJSON.Status", "AMSJSON.Notify", "Debug"]
+          //"args" :["amqp://amsauh:amsauh@localhost:5672/amsauh", "Test", "AMSJSON.Status", "AMSJSON.Notify", "Debug"]
+            "args": ["run"]
 
            
         }

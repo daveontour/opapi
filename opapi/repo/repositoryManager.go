@@ -10,6 +10,7 @@ updates and the refresh of the repository is scheduled
 
 import (
 	"bytes"
+	"runtime"
 	"strconv"
 
 	//	"database/sql"
@@ -112,7 +113,7 @@ func ReInitAirport(aptCode string) {
 
 func initRepository(airportCode string) {
 
-	defer globals.ExeTime(fmt.Sprintf("Initialising Repository for %s", airportCode))()
+	//defer globals.ExeTime(fmt.Sprintf("Initialising Repository for %s", airportCode))()
 
 	//Make sure the required services are available and loop until they are.
 	//This may occur if this service starts before AMS
@@ -154,7 +155,7 @@ func initRepository(airportCode string) {
 func populateResourceMaps(airportCode string) {
 
 	repo := GetRepo(airportCode)
-	globals.Logger.Info(fmt.Sprintf("Populating Resource Maps for %s", airportCode))
+	globals.Logger.Info("Populating Resource Maps for " + airportCode)
 	// Retrieve the available resources
 
 	var checkIns models.FixedResources
@@ -388,7 +389,7 @@ func scheduleUpdates(airportCode string) {
 	m := globals.ConfigViper.GetString("ScheduleUpdateJobIntervalInHours")
 	n, err := strconv.Atoi(m)
 	if err != nil {
-		_, err := s.Every(n).Hours().StartAt(startTime).Do(func() { incrementalUpdateRepository(airportCode) })
+		_, err := s.Every(n).Hours().StartAt(startTime).Do(func() { IncrementalUpdateRepository(airportCode) })
 		if err != nil {
 			globals.Logger.Error(fmt.Errorf("Error scheduling repository update %s", err))
 		}
@@ -397,7 +398,7 @@ func scheduleUpdates(airportCode string) {
 	m = globals.ConfigViper.GetString("ScheduleUpdateJobIntervalInMinutes")
 	n, err = strconv.Atoi(m)
 	if n != -1 && err == nil {
-		_, err = s.Every(n).Minutes().Do(func() { incrementalUpdateRepository(airportCode) })
+		_, err = s.Every(n).Minutes().Do(func() { IncrementalUpdateRepository(airportCode) })
 		if err != nil {
 			globals.Logger.Error(fmt.Errorf("Error scheduling repository update %s", err))
 		}
@@ -415,12 +416,13 @@ func loadRepositoryOnStartup(airportCode string) {
 
 	// Schedule the automated scheduled pushes to for defined endpoints
 	go SchedulePushes(airportCode, false)
+	runtime.GC()
 
 }
 
 func updateRepository(airportCode string) {
 
-	defer globals.ExeTime(fmt.Sprintf("Updated Repository for %s", airportCode))()
+	//defer globals.ExeTime(fmt.Sprintf("Updated Repository for %s", airportCode))()
 	// Update the resource map. New entries will be added, existing entries will be left untouched
 	globals.Logger.Info(fmt.Sprintf("Scheduled Maintenance of Repository: %s. Updating Resource Map - Starting", airportCode))
 	populateResourceMaps(airportCode)
@@ -462,8 +464,9 @@ func updateRepository(airportCode string) {
 	repo.UpdateUpperLimit(time.Date(to.Year(), to.Month(), to.Day(), 0, 0, 0, 0, to.Location()))
 
 	cleanRepository(from, airportCode)
+	runtime.GC()
 }
-func incrementalUpdateRepository(airportCode string) {
+func IncrementalUpdateRepository(airportCode string) {
 
 	defer func() {
 		if err := recover(); err != nil {
@@ -473,7 +476,7 @@ func incrementalUpdateRepository(airportCode string) {
 	}()
 
 	fmt.Println("Incremental Load")
-	defer globals.ExeTime(fmt.Sprintf("Updated Repository for %s", airportCode))()
+	//defer globals.ExeTime("Updated Repository for "+ airportCode)()
 	// Update the resource map. New entries will be added, existing entries will be left untouched
 	globals.Logger.Info(fmt.Sprintf("Scheduled Maintenance of Repository: %s. Incremental Updating Resource Map - Starting", airportCode))
 	populateResourceMaps(airportCode)
@@ -484,6 +487,11 @@ func incrementalUpdateRepository(airportCode string) {
 	if chunkSize < 1 {
 		chunkSize = 2
 	}
+
+	preLength := repo.FlightLinkedList.Len()
+	preEarliest, preLatest := repo.FlightLinkedList.Extremes()
+	preLowerLimit := repo.CurrentLowerLimit
+	preUpperLimit := repo.CurrentUpperLimit
 
 	globals.Logger.Info(fmt.Sprintf("Scheduled Maintenance of Repository: %s. Getting Incremental flights. Chunk Size: %v days", airportCode, chunkSize))
 
@@ -499,10 +507,8 @@ func incrementalUpdateRepository(airportCode string) {
 		for _, flight := range envel.Body.GetFlightsResponse.GetFlightsResult.WebServiceResult.ApiResponse.Data.Flights.Flight {
 			flight.LastUpdate = time.Now()
 			flight.Action = globals.StatusAction
-			//	globals.MapMutex.Lock()
 			repo.FlightLinkedList.ReplaceOrAddNode(flight)
 			upadateAllocation(flight, airportCode, false)
-			//	globals.MapMutex.Unlock()
 		}
 
 		globals.FlightsInitChannel <- len(envel.Body.GetFlightsResponse.GetFlightsResult.WebServiceResult.ApiResponse.Data.Flights.Flight)
@@ -511,21 +517,33 @@ func incrementalUpdateRepository(airportCode string) {
 	from := time.Now().AddDate(0, 0, repo.FlightSDOWindowMinimumInDaysFromNow)
 	to := time.Now().AddDate(0, 0, repo.FlightSDOWindowMaximumInDaysFromNow)
 
-	fmt.Printf("Got flights set from %s to %s\n", from, to)
+	repo.UpdateLowerLimit(time.Date(from.Year(), from.Month(), from.Day(), 0, 0, 0, 0, from.Location()))
+	repo.UpdateUpperLimit(time.Date(to.Year(), to.Month(), to.Day(), 0, 0, 0, 0, to.Location()))
 
-	(*repo).UpdateLowerLimit(time.Date(from.Year(), from.Month(), from.Day(), 0, 0, 0, 0, from.Location()))
-	(*repo).UpdateUpperLimit(time.Date(to.Year(), to.Month(), to.Day(), 0, 0, 0, 0, to.Location()))
+	removed := cleanRepository(from, airportCode)
+	postLength := repo.FlightLinkedList.Len()
+	postEarliest, postLatest := repo.FlightLinkedList.Extremes()
+	postLowerLimit := repo.CurrentLowerLimit
+	postUpperLimit := repo.CurrentUpperLimit
 
-	cleanRepository(from, airportCode)
+	logentry := fmt.Sprintf("\nScheduled Maintenance of Repository: %s at %s", airportCode, time.Now())
+	logentry += fmt.Sprintf("\nPre Maintenance:\n  Length: %v\n  Earliest STO: %s\n  Latestet STO: %s\n  Lower Limit:  %s\n  Upper Limit:  %s\n ", preLength, preEarliest, preLatest, preLowerLimit, preUpperLimit)
+	logentry += fmt.Sprintf("\nPost Maintenance:\n  Length: %v\n  Earliest STO: %s\n  Latestet STO: %s\n  Lower Limit:  %s\n  Upper Limit:  %s\n ", postLength, postEarliest, postLatest, postLowerLimit, postUpperLimit)
+	logentry += fmt.Sprintf("\nNumber of flights Pruned: %v", removed)
+
+	globals.Logger.Info(logentry)
+	fmt.Println(logentry)
+	runtime.GC()
 }
-func cleanRepository(from time.Time, airportCode string) {
+func cleanRepository(from time.Time, airportCode string) (count int) {
 
 	// Cleans the repository of old entries
 	// globals.MapMutex.Lock()
 	// defer globals.MapMutex.Unlock()
 
 	globals.Logger.Info(fmt.Sprintf("Cleaning repository from: %s", from))
-	GetRepo(airportCode).FlightLinkedList.RemoveExpiredNodes(from)
+	count = GetRepo(airportCode).FlightLinkedList.RemoveExpiredNodes(from)
+	return
 }
 
 func clearMSMQ(airportCode string) {

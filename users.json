@@ -18,7 +18,7 @@
             ],
             "UserChangeSubscriptions": [
                 {
-                    "Enabled": true,
+                    "Enabled": false,
                     "EnableInDemoMode":true,
                     "Airport": "AUH",
                     "DestinationURL": "http://localhost:8082/changeEndpoint",
@@ -49,7 +49,7 @@
             ],
             "UserPushSubscriptions": [
                 {
-                    "Enabled": true,
+                    "Enabled": false,
                     "EnableInDemoMode":true,
                     "PushOnStartUp":  true,
                     "Airport": "AUH",

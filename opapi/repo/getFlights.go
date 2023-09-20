@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -18,37 +19,45 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func GetUserProfile(c *gin.Context, userToken string) models.UserProfile {
+func GetUserProfile(c *gin.Context, userToken string) *models.UserProfile {
 
-	defer globals.ExeTime("Getting User Profile")()
+	//defer globals.ExeTime("Getting User Profile")()
 
-	key := userToken
+	//key := userToken
 
 	if c != nil {
 		keys := c.Request.Header["Token"]
-		key = "default"
+		userToken = "default"
 
 		if keys != nil {
-			key = keys[0]
+			userToken = keys[0]
 		}
 
 	}
-	users := globals.GetUserProfiles()
-	userProfile := models.UserProfile{}
 
-	for _, u := range users {
-		if key == u.Key {
-			userProfile = u
-			break
+	for _, u := range globals.GetUserProfiles() {
+		if userToken == u.Key {
+			return &u
 		}
 	}
 
-	return userProfile
-
+	return nil
 }
 
 func GetRequestedFlightsAPI(c *gin.Context) {
-	defer globals.ExeTime(fmt.Sprintf("Get Flight Processing time for %s", c.Request.RequestURI))()
+	//defer globals.ExeTime(fmt.Sprintf("Get Flight Processing time for %s", c.Request.RequestURI))()
+	defer func() {
+		// var m runtime.MemStats
+		// runtime.ReadMemStats(&m)
+		// fmt.Println("Initial HeapAlloc: ", m.HeapAlloc)
+
+		// Trigger the garbage collector
+		runtime.GC()
+
+		// // Print the memory usage after the garbage collector has run
+		// runtime.ReadMemStats(&m)
+		// fmt.Println("After GC HeapAlloc: ", m.HeapAlloc)
+	}()
 
 	userProfile := GetUserProfile(c, "")
 
@@ -57,9 +66,9 @@ func GetRequestedFlightsAPI(c *gin.Context) {
 		return
 	}
 
-	globals.RequestLogger.Info(fmt.Sprintf("User: %s IP: %s Request:%s", userProfile.UserName, c.RemoteIP(), c.Request.RequestURI))
+	globals.RequestLogger.Info("User: " + userProfile.UserName + " IP: " + c.RemoteIP() + " Request:% " + c.Request.RequestURI)
 
-	apt := c.Param("apt")
+	//apt := c.Param("apt")
 	direction := strings.ToUpper(c.Query("direction"))
 	if direction == "" {
 		direction = strings.ToUpper(c.Query("d"))
@@ -69,53 +78,33 @@ func GetRequestedFlightsAPI(c *gin.Context) {
 	if flt == "" {
 		flt = c.Query("flight")
 	}
-	from := c.Query("from")
-	to := c.Query("to")
+
 	route := strings.ToUpper(c.Query("route"))
 	if route == "" {
 		route = c.Query("r")
 	}
 
-	response, err := GetRequestedFlightsCommon(apt, direction, airline, flt, from, to, route, "", c, nil)
+	response, err := GetRequestedFlightsCommon(c.Param("apt"), direction, airline, flt, c.Query("from"), c.Query("to"), route, "", c, nil)
 	if err.Err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
 		return
 	}
 
-	max := c.Query("max")
-	tf := c.Query("tf")
 	totalFlights := -1
-	if tf == "true" {
-		totalFlights = GetRepo(apt).FlightLinkedList.Len()
+	if c.Query("tf") == "true" {
+		totalFlights = GetRepo(c.Param("apt")).FlightLinkedList.Len()
 	}
 	response.TotalFlights = totalFlights
-	fileName, err2 := writeFlightResponseToFile(response, &userProfile, max, true)
+	fileName, err2 := writeFlightResponseToFile(response, userProfile, c.Query("max"), true)
+	defer func() {
+		if os.Remove(fileName) != nil {
+			fmt.Println(err.Error())
+		}
+	}()
 
 	if err2 == nil {
 		c.Writer.Header().Set("Content-Type", "application/json")
 		c.File(fileName)
-
-		// f, _ := os.OpenFile(fileName, os.O_RDONLY, 0777)
-		// fi, err := f.Stat()
-		// if err != nil {
-		// 	// Could not obtain stat, handle error
-		// }
-
-		// c.DataFromReader(200, fi.Size(), "application/json", f, nil)
-
-		defer func() {
-			// err = f.Close()
-			// if err != nil {
-			// 	fmt.Println(err.Error())
-			// } else {
-			err := os.Remove(fileName)
-			if err != nil {
-				fmt.Println(err.Error())
-			} else {
-				fmt.Println("Temp file deleted")
-			}
-			//		}
-		}()
 	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
 	}
@@ -135,8 +124,14 @@ func GetRequestedFlightsSub(sub models.UserPushSubscription, userToken string) (
 }
 func GetRequestedFlightsCommon(apt, direction, airline, flt, from, to, route, userToken string, c *gin.Context, qf []models.ParameterValuePair) (models.Response, models.GetFlightsError) {
 
+	userProfilePtr := GetUserProfile(c, userToken)
+
 	// Create the response object so we can return early if required
-	response := models.Response{}
+	response := models.Response{
+		Route:       route,
+		User:        userProfilePtr.UserName,
+		AirportCode: apt,
+	}
 
 	// Add the flights the response object and return nil for errors
 	if direction != "" {
@@ -150,12 +145,6 @@ func GetRequestedFlightsCommon(apt, direction, airline, flt, from, to, route, us
 		response.Direction = "ARR/DEP"
 	}
 
-	response.Route = route
-
-	// Get the profile of the user making the request
-	userProfile := GetUserProfile(c, userToken)
-	response.User = userProfile.UserName
-
 	if apt == "" {
 		return response, models.GetFlightsError{
 			StatusCode: http.StatusBadRequest,
@@ -164,7 +153,10 @@ func GetRequestedFlightsCommon(apt, direction, airline, flt, from, to, route, us
 	}
 
 	// Check that the requested airport exists in the repository
-	if GetRepo(apt) == nil {
+
+	aptPtr := GetRepo(apt)
+
+	if aptPtr == nil {
 		return response, models.GetFlightsError{
 			StatusCode: http.StatusBadRequest,
 			Err:        fmt.Errorf("Airport %s not found", apt),
@@ -172,9 +164,9 @@ func GetRequestedFlightsCommon(apt, direction, airline, flt, from, to, route, us
 	}
 
 	// Set Default airline if none set
-	if airline == "" && userProfile.DefaultAirline != "" {
-		airline = userProfile.DefaultAirline
-		response.AddWarning(fmt.Sprintf("Airline set to %s by the administration configuration", airline))
+	if airline == "" && userProfilePtr.DefaultAirline != "" {
+		airline = userProfilePtr.DefaultAirline
+		response.AddWarning("Airline set to " + airline + " by the administration configuration")
 	} else {
 		response.Airline = airline
 	}
@@ -184,26 +176,24 @@ func GetRequestedFlightsCommon(apt, direction, airline, flt, from, to, route, us
 	}
 
 	//Check that the user is allowed to access the requested airport
-	if !globals.Contains(userProfile.AllowedAirports, apt) &&
-		!globals.Contains(userProfile.AllowedAirports, "*") {
+	if !globals.Contains(userProfilePtr.AllowedAirports, apt) &&
+		!globals.Contains(userProfilePtr.AllowedAirports, "*") {
 		return response, models.GetFlightsError{
 			StatusCode: http.StatusBadRequest,
 			Err:        errors.New("User is not allowed to access requested airport"),
 		}
 	}
 
-	response.AirportCode = apt
-
 	// Build the request object
-	request := models.Request{Direction: direction, Airline: airline, FltNum: flt, From: from, To: to, UserProfile: userProfile, Route: route}
+	request := models.Request{Direction: direction, Airline: airline, FltNum: flt, From: from, To: to, UserProfile: *userProfilePtr, Route: route}
 
 	// Reform the request based on the user Profile and the request parameters
 	request, response = processCustomFieldQueries(request, response, c, qf)
 
 	// If the user is requesting a particular airline, check that they are allowed to access that airline
-	if airline != "" && userProfile.AllowedAirlines != nil {
-		if !globals.Contains(userProfile.AllowedAirlines, airline) &&
-			!globals.Contains(userProfile.AllowedAirlines, "*") {
+	if airline != "" && userProfilePtr.AllowedAirlines != nil {
+		if !globals.Contains(userProfilePtr.AllowedAirlines, airline) &&
+			!globals.Contains(userProfilePtr.AllowedAirlines, "*") {
 			return response, models.GetFlightsError{
 				StatusCode: http.StatusBadRequest,
 				Err:        errors.New("unavailable"),
@@ -215,8 +205,8 @@ func GetRequestedFlightsCommon(apt, direction, airline, flt, from, to, route, us
 
 	// Get the filtered and pruned flights for the request
 	globals.MapMutex.Lock()
-	flights := GetRepo(apt).FlightLinkedList
-	response, err = filterFlights(request, response, flights, c, GetRepo(apt))
+	flights := aptPtr.FlightLinkedList
+	response, err = filterFlights(request, response, flights, c, aptPtr)
 	globals.MapMutex.Unlock()
 
 	if err == nil {
@@ -240,7 +230,7 @@ func processCustomFieldQueries(request models.Request, response models.Response,
 		// Find the potential customField queries in the request
 		queryMap := c.Request.URL.Query()
 		for k, v := range queryMap {
-			if !globals.Contains(globals.ReservedParameters, k) {
+			if !globals.Contains([]string{"airport", "airline", "al", "from", "to", "direction", "d", "route", "r", "sort", "flt", "flight"}, k) {
 				customFieldQureyMap[k] = v[0]
 			}
 		}
@@ -340,7 +330,7 @@ func filterFlights(request models.Request, response models.Response, flightsLink
 		}
 	}
 
-	filterStart := time.Now()
+	//filterStart := time.Now()
 
 	currentFlight := flightsLinkedList.Head
 
@@ -420,14 +410,14 @@ NextFlight:
 		currentFlight = currentFlight.NextNode
 	}
 
-	globals.MetricsLogger.Info(fmt.Sprintf("Filter Flights execution time: %s", time.Since(filterStart)))
+	//	globals.MetricsLogger.Info(fmt.Sprintf("Filter Flights execution time: %s", time.Since(filterStart)))
 
 	//***Important
 	//Pruning is now done at the output to avoid creating additional copies of the data structure
 
 	response.NumberOfFlights = len(response.ResponseFlights)
 
-	defer globals.ExeTime(fmt.Sprintf("Sorting %v Filtered Flights", response.NumberOfFlights))()
+	//defer globals.ExeTime(fmt.Sprintf("Sorting %v Filtered Flights", response.NumberOfFlights))()
 	sort.Slice(response.ResponseFlights, func(i, j int) bool {
 		return response.ResponseFlights[i].STO.Before(response.ResponseFlights[j].STO)
 	})
@@ -464,13 +454,13 @@ func writeFlightResponseToFile(response models.Response, userProfile *models.Use
 		"\"Direction\":\"" + response.Direction + "\"," +
 		"\"ScheduleFlightsFrom\":\"" + response.From + "\"," +
 		"\"ScheduleFlightsTo\":\"" + response.To + "\"," +
-		"\"NumberOfFlights\":\"" + fmt.Sprintf("%v", response.NumberOfFlights) + "\",")
+		"\"NumberOfFlights\":\"" + strconv.Itoa(response.NumberOfFlights) + "\",")
 	if e != nil {
 		return
 	}
 
 	if response.TotalFlights > 0 {
-		_, e = fwb.WriteString("\"TotalFlights\":\"" + fmt.Sprintf("%v", response.TotalFlights) + "\",")
+		_, e = fwb.WriteString("\"TotalFlights\":\"" + strconv.Itoa(response.TotalFlights) + "\",")
 	}
 
 	if response.Airline != "" {
@@ -561,6 +551,9 @@ func writeFlightResponseToFile(response models.Response, userProfile *models.Use
 	}
 
 	e = models.WriteFlightsInJSON(fwb, response.ResponseFlights, userProfile, statusOnly, maxFlights)
+
+	response.ResponseFlights = nil
+
 	if e != nil {
 		return
 	}
@@ -572,5 +565,6 @@ func writeFlightResponseToFile(response models.Response, userProfile *models.Use
 	if e != nil {
 		return
 	}
+
 	return file.Name(), nil
 }

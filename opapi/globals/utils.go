@@ -5,7 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
+
+	//	"time"
 
 	"github.com/daveontour/opapi/opapi/models"
 )
@@ -79,9 +80,9 @@ func ExePath() (string, error) {
 	return "", err
 }
 
-func ExeTime(name string) func() {
-	start := time.Now()
-	return func() {
-		MetricsLogger.Info(fmt.Sprintf("%s execution time: %v", name, time.Since(start)))
-	}
-}
+// func ExeTime(name string) func() {
+// 	start := time.Now()
+// 	return func() {
+// 		MetricsLogger.Info(fmt.Sprintf("%s execution time: %v", name, time.Since(start)))
+// 	}
+// }

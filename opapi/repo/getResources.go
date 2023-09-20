@@ -35,7 +35,7 @@ func GetResourceSub(sub models.UserPushSubscription, userToken string) (models.R
 
 func GetResourceAPI(c *gin.Context) {
 
-	defer globals.ExeTime(fmt.Sprintf("Get Resources Request for %s", c.Request.URL))()
+	//	defer globals.ExeTime(fmt.Sprintf("Get Resources Request for %s", c.Request.URL))()
 	// Get the profile of the user making the request
 	userProfile := GetUserProfile(c, "")
 
@@ -71,13 +71,9 @@ func GetResourceAPI(c *gin.Context) {
 		sortBy = "resource"
 	}
 
-	from := c.Query("from")
-	to := c.Query("to")
-	updatedSince := c.Query("updatedSince")
+	response, error := getResourcesCommon(apt, flightID, airline, resourceType, resource, c.Query("from"), c.Query("to"), c.Query("updatedSince"), sortBy, "", c)
 
-	response, error := getResourcesCommon(apt, flightID, airline, resourceType, resource, from, to, updatedSince, sortBy, "", c)
-
-	fileName, err := writeResourceResponseToFile(response, &userProfile)
+	fileName, err := writeResourceResponseToFile(response, userProfile)
 
 	// defer func() {
 	// 	globals.FileDeleteChannel <- fileName
@@ -216,7 +212,7 @@ func getResourcesCommon(apt, flightID, airline, resourceType, resource, from, to
 		repo.ChuteList,
 		repo.CarouselList}
 
-	filterStart := time.Now()
+	//	filterStart := time.Now()
 	for idx, allocMap := range allocMaps {
 
 		//If a resource type has been specified, ignore the rest
@@ -308,9 +304,9 @@ func getResourcesCommon(apt, flightID, airline, resourceType, resource, from, to
 		}
 	}
 
-	globals.MetricsLogger.Info(fmt.Sprintf("Filter Resources execution time: %s", time.Since(filterStart)))
+	//	globals.MetricsLogger.Info(fmt.Sprintf("Filter Resources execution time: %s", time.Since(filterStart)))
 
-	sortStart := time.Now()
+	//	sortStart := time.Now()
 	if strings.ToLower(sortBy) == "time" {
 		sort.Slice(alloc, func(i, j int) bool {
 			return alloc[i].From.Before(alloc[j].From)
@@ -330,7 +326,7 @@ func getResourcesCommon(apt, flightID, airline, resourceType, resource, from, to
 		})
 	}
 
-	globals.MetricsLogger.Info(fmt.Sprintf("Sort Resources execution time: %s", time.Since(sortStart)))
+	//	globals.MetricsLogger.Info(fmt.Sprintf("Sort Resources execution time: %s", time.Since(sortStart)))
 
 	response.Allocations = alloc
 
@@ -345,7 +341,7 @@ func getResourcesCommon(apt, flightID, airline, resourceType, resource, from, to
 
 func GetConfiguredResources(c *gin.Context) {
 
-	defer globals.ExeTime(fmt.Sprintf("Get Configured Resources Request for %s", c.Request.URL))()
+	//	defer globals.ExeTime(fmt.Sprintf("Get Configured Resources Request for %s", c.Request.URL))()
 	// Get the profile of the user making the request
 	userProfile := GetUserProfile(c, "")
 	if !userProfile.Enabled {

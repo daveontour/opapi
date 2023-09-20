@@ -429,7 +429,10 @@ func WriteJSONConfiguredResources(fwb *bufio.Writer, d ResourceResponse) (err er
 				break
 			}
 		}
-		fwb.WriteString("{\"ResourceType\":\"" + a.ResourceTypeCode + "\",\"ResourceName\":\"" + a.Name + "\",\"Area\":\"" + a.Area + "\"}")
+		_, err := fwb.WriteString("{\"ResourceType\":\"" + a.ResourceTypeCode + "\",\"ResourceName\":\"" + a.Name + "\",\"Area\":\"" + a.Area + "\"}")
+		if err != nil {
+			return err
+		}
 	}
 	_, err = fwb.WriteString("]}")
 	if err != nil {
@@ -757,6 +760,27 @@ func (ll *FlightLinkedList) Len() int {
 	return count
 }
 
+func (ll *FlightLinkedList) Extremes() (earliest, latest time.Time) {
+	currentNode := ll.Head
+
+	latest = time.Time{}
+	earliest = time.Time{}
+
+	for currentNode != nil {
+
+		sto := currentNode.GetSTO()
+		if sto.After(latest) {
+			latest = sto
+		}
+		if sto.Before(earliest) || earliest.IsZero() {
+			earliest = sto
+		}
+		currentNode = currentNode.NextNode
+	}
+
+	return
+}
+
 func (ll *FlightLinkedList) AddNode(newNode Flight) {
 	// AddNode adds a new node to the end of the doubly linked list.
 	newNode.PrevNode = ll.Tail
@@ -805,11 +829,14 @@ func (ll *FlightLinkedList) ReplaceOrAddNode(node Flight) {
 
 	ll.AddNode(node)
 }
-func (ll *FlightLinkedList) RemoveExpiredNodes(from time.Time) {
+func (ll *FlightLinkedList) RemoveExpiredNodes(from time.Time) (count int) {
 	currentNode := ll.Head
 
 	for currentNode != nil {
 		if currentNode.GetSDO().Before(from) {
+
+			count++
+
 			if currentNode.PrevNode != nil {
 				currentNode.PrevNode.NextNode = currentNode.NextNode
 			} else {
@@ -828,6 +855,8 @@ func (ll *FlightLinkedList) RemoveExpiredNodes(from time.Time) {
 			currentNode = currentNode.NextNode
 		}
 	}
+
+	return
 }
 
 func (r *Repository) RemoveFlightAllocation(flightID string) {

@@ -59,7 +59,9 @@ func execute(args []string) {
 	}
 	fileName := args[3]
 
-	fmt.Println(fmt.Sprintf("url:%s \nfixed:%t \ninterval:%d \nFilename:%s", requestURL, fixed, interval, fileName))
+	makeCall := args[4]
+
+	fmt.Printf("url:%s \nfixed:%t \ninterval:%d \nFilename:%s\n", requestURL, fixed, interval, fileName)
 	initCSVHeader(fileName)
 
 	for {
@@ -70,35 +72,40 @@ func execute(args []string) {
 
 		time.Sleep(time.Duration(waitInterval * int(time.Second)))
 
-		body, duration, _ := makeRequest(requestURL)
-		_, processID, memUsage := getmemusage("opapi")
+		if makeCall != "no" {
+			body, duration, _ := makeRequest(requestURL)
+			_, processID, memUsage := getmemusage("opapi")
 
-		tf := -1
-		var mess interface{}
-		fn := -1
-		err := json.Unmarshal(body, &mess)
-		if err != nil {
-			fn = -1
+			tf := -1
+			var mess interface{}
+			fn := -1
+			err := json.Unmarshal(body, &mess)
+			if err != nil {
+				fn = -1
+			} else {
+				m, ok := mess.(map[string]interface{})
+				if !ok {
+					_ = fmt.Errorf("want type map[string]interface{};  got %T", mess)
+				}
+				for k, v := range m {
+					if k == "NumberOfFlights" {
+						fn, _ = strconv.Atoi(fmt.Sprint(v))
+						break
+					}
+				}
+				for k, v := range m {
+					if k == "TotalFlights" {
+						tf, _ = strconv.Atoi(fmt.Sprint(v))
+						break
+					}
+				}
+			}
+
+			logusage(duration, fn, tf, memUsage, processID, fileName)
 		} else {
-			m, ok := mess.(map[string]interface{})
-			if !ok {
-				_ = fmt.Errorf("want type map[string]interface{};  got %T", mess)
-			}
-			for k, v := range m {
-				if k == "NumberOfFlights" {
-					fn, _ = strconv.Atoi(fmt.Sprint(v))
-					break
-				}
-			}
-			for k, v := range m {
-				if k == "TotalFlights" {
-					tf, _ = strconv.Atoi(fmt.Sprint(v))
-					break
-				}
-			}
+			_, processID, memUsage := getmemusage("opapi")
+			logusage(0, -1, -1, memUsage, processID, fileName)
 		}
-
-		logusage(duration, fn, tf, memUsage, processID, fileName)
 
 	}
 
@@ -163,8 +170,7 @@ func initCSVHeader(fileName string) {
 	}
 	defer f.Close()
 
-	f.WriteString(fmt.Sprintf("%s,%s,%s,%s, %s,%s\n", "Time", "API Execution Time", "Num Flights", "Total Flights", "Memory Usage", "Process ID"))
-	f.Close()
+	_, _ = f.WriteString(fmt.Sprintf("%s,%s,%s,%s, %s,%s\n", "Time", "API Execution Time", "Num Flights", "Total Flights", "Memory Usage", "Process ID"))
 }
 
 func logusage(ts time.Duration, numFlights int, tf int, memUsage string, processID string, fileName string) {
@@ -181,6 +187,5 @@ func logusage(ts time.Duration, numFlights int, tf int, memUsage string, process
 	ms := int64(ts / time.Millisecond)
 
 	fmt.Printf("%s,%v,%v,%v,%s,%s\n", now.Format(time.RFC3339), ms, numFlights, tf, memUsage, processID)
-	f.WriteString(fmt.Sprintf("%s,%v,%v,%v,%s,%s\n", now.Format(time.RFC3339), ms, numFlights, tf, memUsage, processID))
-	f.Close()
+	_, _ = f.WriteString(fmt.Sprintf("%s,%v,%v,%v,%s,%s\n", now.Format(time.RFC3339), ms, numFlights, tf, memUsage, processID))
 }

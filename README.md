@@ -304,8 +304,8 @@ An example of the contents of the service.json file is shown below
 |KeyFile|keyFile||
 |CertFile|certFile||
 |TestHTTPServer|||
-|LogFile|c:/Users/dave_/Desktop/Logs/process.log||
-|RequestLogFile|"c:/Users/dave_/Desktop/Logs/request.log||
+|LogFile| The log file name to log serive debug and error messages e.g. c:/Users/dave_/Desktop/Logs/process.log||
+|RequestLogFile| The log file name to log API requests e.g. c:/Users/dave_/Desktop/Logs/request.log||
 |MaxLogFileSizeInMB|The maximum size of the application log file||
 |MaxNumberLogFiles|When the log file have reached their maximum size they will be archived. This parameter specifies how many archive logs to keep||
 |EnableMetrics|true||
@@ -313,6 +313,16 @@ An example of the contents of the service.json file is shown below
 |AdminToken|The header token to identify the user with administrator capability ||
 |NumberOfChangePushWorkers|The number of worker Go processes for managing change notifications||
 |NumberOfSchedulePushWorkers|The number of worker Go processes for managing distribution of subscription updates|Maximum value should not exceed the total number of subscriptions|
+
+## Service Memory Usage
+
+The memory used by the service is variable. The primary factors in memory usage is the number of flights held in the service's cache and the number of custom fields defined for flights withing AMS. 
+
+Memory usage can be reduced by setting the environment variable GOMEMLIMIT to the target memory usage limit. 
+
+e.g. GOMEMLIMIT=120MiB
+
+This acts as a target for the services garbage collection system to aim for when freeing up memory
 
 
 # Configuring Airports
@@ -390,6 +400,7 @@ Below is an example of the **users.json** file with two users configured.
 
 - The "Default User" has restricted access just the ABC and APT airports. They are also restricted to flight information on WY and QF flights. The AllowedCustomFields array defines the custom field data that will be returned to them if available; not other custom fields will be returned to the user. 
 - The second defined user, "Super User" has access to all airports, airlines and custome fields. The "*" in the configuration gives access to ALL.
+- The **Key** parameter is the value of the **Token** header attribute that the users supplies to be identified with this user
 
 Between these extremes, other users can be configured with appropriate access rights configured for each user
 
@@ -439,9 +450,11 @@ Between these extremes, other users can be configured with appropriate access ri
     ]
 }
 ~~~
-## Configuring User Push Subscriptions
 
-A user can have zero, one or more push subscriptions configured. A push subscription will send the current state for a set of flights or resources configured in the subscription. The push will occur at regular intervals as defined in the subscription. The data is sent to either a WebHook endpoint and/or published to a RabbitMQ exchange as configured in the subscription. 
+
+## Configuring User Change Subscriptions
+
+A user can have zero, one or more change notification subscriptions confiured. The change subscription defines the types of changes that the user in iterested in, e.g an aircraft type change, a flight delete, etc. When one of the interested changes occurs, the service will push the notification to the defined end point for the user. The defined end point can be a WebHooks client or a RabbitMQ Exchange 
 
 ~~~json
 {
@@ -499,11 +512,115 @@ A user can have zero, one or more push subscriptions configured. A push subscrip
 }
 ~~~
 
-## Configuring User Change Subscriptions
+The subscription can spefify the types of changes the user is interested in receiving. If the flight is changed, but does not contain a change type that hsa been enabled, the the update message will not be sent.
 
-A user can have zero, one or more change notification subscriptions confiured. The change subscription defines the types of changes that the user in iterested in, e.g an aircraft type change, a flight delete, etc. When one of the interested changes occurs, the service will push the notification to the defined end point for the user. The defined end point can be a WebHooks client or a RabbitMQ Exchange 
+~~~json
+                    "CreateFlight": true,
+                    "DeleteFlight": true,
+                    "UpdateFlight": true, 
+                    "CheckInChange": true,
+                    "GateChange": true,
+                    "StandChange": true,
+                    "CarouselChange": true,
+                    "ChuteChange": true,
+                    "AircraftTypeOrRegoChange": true,
+                    "RouteChange": true,
+                    "LinkedFlightChange":true,
+                    "EventChange": true,
+                    "CustomFieldChange": [
+                        "SYS_ETA"
+                    ],
+                    "All":true,
+~~~
 
-# Running in Demonstrration Mode
+**DestinationURL**  is the endpoint to send the HTTP webhook request to on the client system. The call can be either HTTP or HTTPS. If using HTTPS **TrustaAdCertificates** can be set to send the request, even if the host certificate is incorrect
+
+~~~json
+                    "DestinationURL": "http://localhost:8082/changeEndpoint",
+                    "TrustBadCertificates":true,
+~~~
+
+The **HeaderParameters** array define the Attribute/Value the will be placed in the header of the HTTP webhook call to the client. These can be used so that the client can validate that the request has come from a known source. 
+~~~json
+                    "HeaderParameters": [
+                      {"Parameter":"UserDefinedKey_1", "Value":"Secret Provided By Receiving System"},
+                      {"Parameter":"UserDefinedKey_2", "Value":"Some Other Secret Provided By Receiving System"}
+                    ],
+~~~
+
+The following parameters set the values for a RabbitMQ connection to send the data to. Data is sent to a Rabbit MQ Exchange. This allows maximum flexibility. Clients wanting to receive the data would create a dynamic queue on the RabbitMQ server and bind the queue to the Exchange
+~~~json
+                    "PublishChangesRabbitMQConnectionString": "amqp://amsauh:amsauh@localhost:5672/amsauh",
+                    "PublishChangesRabbitMQExchange": "ClientDistribution",
+                    "PublishChangesRabbitMQTopic": "AMSJSON.Notify",
+~~~
+
+None, one or both the endpoint types can be set active by setting the parameters below
+~~~json
+                    "RMQEnabled":true,
+                    "HTTPEnabled":true
+~~~
+
+
+## Configuring User Push Subscriptions
+
+A user can have zero, one or more push subscriptions configured. A push subscription will send the current state for a set of flights or resources configured in the subscription. 
+
+The push will occur at regular intervals as defined in the subscription. The data is sent to a WebHook endpoint and/or published to a RabbitMQ exchange as configured in the subscription. 
+
+~~~json
+{
+    "Users": [
+        {
+            "Enabled": true,
+            "UserName": "Default User",
+            "Key": "default",
+            "AllowedAirports": [
+                 "APT"
+            ],
+            "AllowedAirlines": [
+                "*"
+            ],
+            "AllowedCustomFields": [
+                "FlightUniqueID",
+                "SYS_ETA"
+            ],
+            "UserChangeSubscriptions": [],
+            "UserPushSubscriptions": [
+                {
+                    "Enabled": true,
+                    "EnableInDemoMode":true,
+                    "PushOnStartUp":  true,
+                    "Airport": "AUH",
+                    "SubscriptionType": "Flight",
+                    "Time": "14:00:00",
+                    "ReptitionHours": 1,
+                    "ReptitionMinutes": 1,
+                    "From": -24,
+                    "To": 24, 
+                    "Airline": "",
+                    "QueryableCustomFields": [],
+                    "Route": "",
+                    "Direction": "", 
+                    "ResourceType": "",
+                    "ResourceID": "",
+                    "DestinationURL": "http://localhost:8082/subscriptionEndPoint",
+                    "HeaderParameters": [
+                      {"Parameter":"UserDefinedKey_1", "Value":"Secret Provided By Receiving System"},
+                      {"Parameter":"UserDefinedKey_2", "Value":"Some Other Secret Provided By Receiving System"}
+                    ],
+                    "TrustBadCertificates":true,
+                    "PublishStatusRabbitMQConnectionString": "amqp://amsauh:amsauh@localhost:5672/amsauh",
+                    "PublishStatusRabbitMQExchange": "Test",
+                    "PublishStatusRabbitMQTopic": "AMSJSON.Status",
+                    "RMQEnabled":true,
+                    "HTTPEnabled":true
+                }
+            ]
+        },
+~~~
+
+# Running in Demonstration Mode
 
 The service can be run in Demonstration Mode to allow usage and demonstration of the API capability **without** a connection to AMS. When run in demonstration mode, the service uses the configuration in the file testfiles\test.json to define the airport and the resources available at the airport. Flights and Allocation can be loaded into the system using the **opapiseeder.exe** program (see below) 
 

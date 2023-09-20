@@ -25,7 +25,8 @@ var IsDebug bool = false
 
 var Logger = logrus.New()
 var RequestLogger = logrus.New()
-var MetricsLogger = logrus.New()
+
+//var MetricsLogger = logrus.New()
 
 var ConfigViper = viper.New()
 var UserViper = viper.New()
@@ -48,8 +49,6 @@ var RefreshSchedulerMap = make(map[string]*gocron.Scheduler)
 
 var UserChangeSubscriptions []models.UserChangeSubscription
 var UserChangeSubscriptionsMutex = &sync.RWMutex{}
-
-var ReservedParameters = []string{"airport", "airline", "al", "from", "to", "direction", "d", "route", "r", "sort", "flt", "flight"}
 
 var DemoMode = false
 
@@ -102,11 +101,11 @@ func InitGlobals() {
 
 	initLogging()
 
-	if ConfigViper.GetBool("EnableMetrics") {
-		MetricsLogger.SetLevel(logrus.InfoLevel)
-	} else {
-		MetricsLogger.SetLevel(logrus.ErrorLevel)
-	}
+	// if ConfigViper.GetBool("EnableMetrics") {
+	// 	MetricsLogger.SetLevel(logrus.InfoLevel)
+	// } else {
+	// 	MetricsLogger.SetLevel(logrus.ErrorLevel)
+	// }
 
 	Logger.SetLevel(logrus.InfoLevel)
 	RequestLogger.SetLevel(logrus.InfoLevel)
@@ -147,17 +146,17 @@ func initLogging() {
 			Compress:   true, // disabled by default
 		})
 	}
-	MetricsLogger.Formatter = &easy.Formatter{
-		TimestampFormat: "2006-01-02 15:04:05.000000",
-		LogFormat:       "[%lvl%]: %time% - %msg%\n",
-	}
-	if ConfigViper.GetString("MetricsLogFile") != "" {
-		MetricsLogger.SetOutput(&lumberjack.Logger{
-			Filename:   ConfigViper.GetString("MetricsLogFile"),
-			MaxSize:    ConfigViper.GetInt("MaxLogFileSizeInMB"), // megabytes
-			MaxBackups: ConfigViper.GetInt("MaxNumberLogFiles"),
-			MaxAge:     28,   //days
-			Compress:   true, // disabled by default
-		})
-	}
+	// MetricsLogger.Formatter = &easy.Formatter{
+	// 	TimestampFormat: "2006-01-02 15:04:05.000000",
+	// 	LogFormat:       "[%lvl%]: %time% - %msg%\n",
+	// }
+	// if ConfigViper.GetString("MetricsLogFile") != "" {
+	// 	MetricsLogger.SetOutput(&lumberjack.Logger{
+	// 		Filename:   ConfigViper.GetString("MetricsLogFile"),
+	// 		MaxSize:    ConfigViper.GetInt("MaxLogFileSizeInMB"), // megabytes
+	// 		MaxBackups: ConfigViper.GetInt("MaxNumberLogFiles"),
+	// 		MaxAge:     28,   //days
+	// 		Compress:   true, // disabled by default
+	// 	})
+	// }
 }

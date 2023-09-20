@@ -6,6 +6,8 @@ import (
 	"context"
 	"crypto/tls"
 	"os"
+	"runtime"
+	"runtime/debug"
 
 	"fmt"
 	"net/http"
@@ -46,6 +48,19 @@ func StartSchedulePushWorkerPool(numWorkers int) {
 }
 
 func SchedulePushes(airportCode string, demoMode bool) {
+
+	// Keep memory use as low as possible
+	go func() {
+		ssys := gocron.NewScheduler(time.Local)
+		_, err := ssys.Every(2).Minute().Do(func() {
+			debug.FreeOSMemory()
+		})
+		if err != nil {
+			fmt.Printf("Could not schedule FreeOSMemory")
+			return
+		}
+		ssys.StartBlocking()
+	}()
 
 	StartChangePushWorkerPool(globals.ConfigViper.GetInt("NumberOfChangePushWorkers"))
 	StartSchedulePushWorkerPool(globals.ConfigViper.GetInt("NumberOfSchedulePushWorkers"))
@@ -286,33 +301,24 @@ func executeChangePushWorker(id int, jobs <-chan models.ChangePushJob) {
 			fmt.Println(errs)
 			return
 		}
-		defer func() {
-			err := file.Close()
-			if err != nil {
-				fmt.Println(err.Error())
-			}
-			err = os.Remove(file.Name())
-			if err != nil {
-				fmt.Println(err.Error())
-			} else {
-				fmt.Println("Temp file deleted for Change PUSH Send")
-			}
-		}()
 
 		fwb := bufio.NewWriterSize(file, 32768)
 		err := job.Flight.WriteJSON(fwb, job.UserProfile, false)
 		if err != nil {
 			globals.Logger.Error(fmt.Errorf("Error in executeChangePushWorker %s", err))
+			removeFile(file)
 			return
 		}
 		err = fwb.Flush()
 		if err != nil {
 			globals.Logger.Error(fmt.Errorf("Error in executeChangePushWorker %s", err))
+			removeFile(file)
 			return
 		}
 		bytesdata, err := os.ReadFile(file.Name())
 		if err != nil {
 			globals.Logger.Error(fmt.Errorf("Error in executeChangePushWorker %s", err))
+			removeFile(file)
 			return
 		}
 
@@ -326,6 +332,7 @@ func executeChangePushWorker(id int, jobs <-chan models.ChangePushJob) {
 
 		if job.Sub.DestinationURL == "" ||
 			!job.Sub.HTTPEnabled {
+			removeFile(file)
 			return
 		}
 
@@ -350,17 +357,33 @@ func executeChangePushWorker(id int, jobs <-chan models.ChangePushJob) {
 
 		if sendErr != nil {
 			globals.Logger.Error(fmt.Sprintf("Change Push Client. Error making http request: %s", sendErr))
+			removeFile(file)
 			continue
 		}
 		if r == nil {
 			globals.Logger.Error(fmt.Sprintf("Scheduled Push Client for user: Error making http request to: %s\n", job.Sub.DestinationURL))
+			removeFile(file)
 			continue
 		}
 		if r.StatusCode != 200 {
 			globals.Logger.Error(fmt.Sprintf("Change Push Client. Error making HTTP request: Returned status code = %v. URL = %s", r.StatusCode, job.Sub.DestinationURL))
+			removeFile(file)
 			continue
 		}
 
+	}
+}
+
+func removeFile(file *os.File) {
+	err := file.Close()
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	err = os.Remove(file.Name())
+	if err != nil {
+		fmt.Println(err.Error())
+	} else {
+		fmt.Println("Temp file deleted for Change PUSH Send")
 	}
 }
 
@@ -419,6 +442,8 @@ func executeScheduledPushWorker(id int, jobs <-chan models.SchedulePushJob) {
 		if job.Sub.HTTPEnabled && job.Sub.DestinationURL != "" {
 			sendViaHTTPClient(fileName, &job)
 		}
+
+		runtime.GC()
 
 	}
 }

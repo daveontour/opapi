@@ -55,22 +55,30 @@ func StartGinServer(demoMode bool) {
 
 	router.GET("/admin/repoMetricsReport/:apt", metricsReport)
 	router.GET("/admin/repoMetricsReportNow/:apt", metricsReportNow)
-	router.GET("/admin/enableMetrics", func(c *gin.Context) {
+	// router.GET("/admin/enableMetrics", func(c *gin.Context) {
+	// 	if hasAdminToken(c) {
+	// 		globals.MetricsLogger.SetLevel(logrus.InfoLevel)
+	// 		globals.MetricsLogger.Info("Performance Metrics Reporting Enabled")
+	// 		c.JSON(http.StatusOK, gin.H{"PerformanceMetricsReporting": "Enabled"})
+	// 	} else {
+	// 		c.JSON(http.StatusForbidden, gin.H{"Error": "Not Authorized"})
+	// 	}
+	// })
+	// router.GET("/admin/disableMetrics", func(c *gin.Context) {
+	// 	if hasAdminToken(c) {
+	// 		globals.MetricsLogger.Info("Performance Metrics Reporting Disabled")
+	// 		globals.MetricsLogger.SetLevel(logrus.ErrorLevel)
+	// 		c.JSON(http.StatusOK, gin.H{"PerformanceMetricsReporting": "Disabledd"})
+	// 	} else {
+	// 		globals.MetricsLogger.Info("Performance Metrics Enabled")
+	// 	}
+	// })
+	router.GET("/admin/refreshCache/:apt", func(c *gin.Context) {
 		if hasAdminToken(c) {
-			globals.MetricsLogger.SetLevel(logrus.InfoLevel)
-			globals.MetricsLogger.Info("Performance Metrics Reporting Enabled")
-			c.JSON(http.StatusOK, gin.H{"PerformanceMetricsReporting": "Enabled"})
+			repo.IncrementalUpdateRepository(c.Param("apt"))
+			c.JSON(http.StatusOK, gin.H{"OK": "OK"})
 		} else {
 			c.JSON(http.StatusForbidden, gin.H{"Error": "Not Authorized"})
-		}
-	})
-	router.GET("/admin/disableMetrics", func(c *gin.Context) {
-		if hasAdminToken(c) {
-			globals.MetricsLogger.Info("Performance Metrics Reporting Disabled")
-			globals.MetricsLogger.SetLevel(logrus.ErrorLevel)
-			c.JSON(http.StatusOK, gin.H{"PerformanceMetricsReporting": "Disabledd"})
-		} else {
-			globals.MetricsLogger.Info("Performance Metrics Enabled")
 		}
 	})
 	router.GET("/help", func(c *gin.Context) {
