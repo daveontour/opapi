@@ -147,7 +147,7 @@
             ]
         },
         {
-            "Enabled": true,
+            "Enabled": false,
             "UserName": "Default User3",
             "Key": "default",
             "AllowedAirports": [
@@ -215,7 +215,7 @@
             ]
         },
         {
-            "Enabled":true,
+            "Enabled":false,
             "UserName": "AUH",
             "Key": "0ab7d73d-e93a-480b-ba8c-a35943161cb0",
             "AllowedAirports": [

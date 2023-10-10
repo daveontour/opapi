@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/daveontour/opapi/opapi/globals"
+	gobstorage "github.com/daveontour/opapi/opapi/gob"
 	"github.com/daveontour/opapi/opapi/models"
 	"github.com/daveontour/opapi/opapi/timeservice"
 
@@ -79,12 +80,14 @@ func GetRequestedFlightsAPI(c *gin.Context) {
 		flt = c.Query("flight")
 	}
 
+	updatedSince := c.Query("updatedSince")
+
 	route := strings.ToUpper(c.Query("route"))
 	if route == "" {
 		route = c.Query("r")
 	}
 
-	response, err := GetRequestedFlightsCommon(c.Param("apt"), direction, airline, flt, c.Query("from"), c.Query("to"), route, "", c, nil)
+	response, err := GetRequestedFlightsCommon(c.Param("apt"), direction, airline, flt, c.Query("from"), c.Query("to"), route, "", c, nil, updatedSince)
 	if err.Err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
 		return
@@ -119,10 +122,10 @@ func GetRequestedFlightsSub(sub models.UserPushSubscription, userToken string) (
 	route := strings.ToUpper(sub.Route)
 	qf := sub.QueryableCustomFields
 
-	return GetRequestedFlightsCommon(apt, direction, airline, "", strconv.Itoa(from), strconv.Itoa(to), route, userToken, nil, qf)
+	return GetRequestedFlightsCommon(apt, direction, airline, "", strconv.Itoa(from), strconv.Itoa(to), route, userToken, nil, qf, "")
 
 }
-func GetRequestedFlightsCommon(apt, direction, airline, flt, from, to, route, userToken string, c *gin.Context, qf []models.ParameterValuePair) (models.Response, models.GetFlightsError) {
+func GetRequestedFlightsCommon(apt, direction, airline, flt, from, to, route, userToken string, c *gin.Context, qf []models.ParameterValuePair, updatedSince string) (models.Response, models.GetFlightsError) {
 
 	userProfilePtr := GetUserProfile(c, userToken)
 
@@ -185,7 +188,7 @@ func GetRequestedFlightsCommon(apt, direction, airline, flt, from, to, route, us
 	}
 
 	// Build the request object
-	request := models.Request{Direction: direction, Airline: airline, FltNum: flt, From: from, To: to, UserProfile: *userProfilePtr, Route: route}
+	request := models.Request{Direction: direction, Airline: airline, FltNum: flt, From: from, To: to, UserProfile: *userProfilePtr, Route: route, UpdatedSince: updatedSince}
 
 	// Reform the request based on the user Profile and the request parameters
 	request, response = processCustomFieldQueries(request, response, c, qf)
@@ -206,7 +209,7 @@ func GetRequestedFlightsCommon(apt, direction, airline, flt, from, to, route, us
 	// Get the filtered and pruned flights for the request
 	globals.MapMutex.Lock()
 	flights := aptPtr.FlightLinkedList
-	response, err = filterFlights(request, response, flights, c, aptPtr)
+	response, err = filterFlights(request, response, flights, c, aptPtr, apt)
 	globals.MapMutex.Unlock()
 
 	if err == nil {
@@ -230,7 +233,7 @@ func processCustomFieldQueries(request models.Request, response models.Response,
 		// Find the potential customField queries in the request
 		queryMap := c.Request.URL.Query()
 		for k, v := range queryMap {
-			if !globals.Contains([]string{"airport", "airline", "al", "from", "to", "direction", "d", "route", "r", "sort", "flt", "flight"}, k) {
+			if !globals.Contains([]string{"airport", "airline", "al", "from", "to", "direction", "d", "route", "r", "sort", "flt", "flight", "updatedSince", "tf", "max"}, k) {
 				customFieldQureyMap[k] = v[0]
 			}
 		}
@@ -278,7 +281,7 @@ func processCustomFieldQueries(request models.Request, response models.Response,
 
 	return request, response
 }
-func filterFlights(request models.Request, response models.Response, flightsLinkedList models.FlightLinkedList, c *gin.Context, repo *models.Repository) (models.Response, error) {
+func filterFlights(request models.Request, response models.Response, flightsLinkedList models.FlightLinkedList, c *gin.Context, repo *models.Repository, apt string) (models.Response, error) {
 
 	//defer exeTime("Filter, Prune and Sort Flights")()
 	//returnFlights := []models.Flight{}
@@ -298,6 +301,7 @@ func filterFlights(request models.Request, response models.Response, flightsLink
 		from = repo.CurrentLowerLimit
 		response.AddWarning(fmt.Sprintf("Requested lower time limit outside cache boundaries. Set to %s", from.Format("2006-01-02T15:04:05")))
 	}
+	request.FromUnix = from.Unix()
 	response.From = from.Format("2006-01-02T15:04:05")
 
 	toOffset, toErr := strconv.Atoi(request.To)
@@ -310,6 +314,7 @@ func filterFlights(request models.Request, response models.Response, flightsLink
 		to = repo.CurrentUpperLimit
 		response.AddWarning(fmt.Sprintf("Requested upper time limit outside cache boundaries. Set to %s", to.Format("2006-01-02T15:04:05")))
 	}
+	request.ToUnix = to.Unix()
 
 	response.To = to.Format("2006-01-02T15:04:05")
 
@@ -330,23 +335,74 @@ func filterFlights(request models.Request, response models.Response, flightsLink
 		}
 	}
 
-	//filterStart := time.Now()
+	if globals.UseGobStorage {
+		flightsLinkedList = gobstorage.GetFlights(request, allowedAllAirline, to, from, apt)
+	}
 
 	currentFlight := flightsLinkedList.Head
 
 NextFlight:
 	for currentFlight != nil {
 
-		if currentFlight.GetSTO().Before(from) {
-			currentFlight = currentFlight.NextNode
-			continue
+		// Don't need to do the filterting because it was done on the SELECT for GobStorage
+		if !globals.UseGobStorage {
+			if currentFlight.GetSTO().Before(from) {
+				currentFlight = currentFlight.NextNode
+				continue
+			}
+
+			if currentFlight.GetSTO().After(to) {
+				currentFlight = currentFlight.NextNode
+				continue
+			}
+
+			// Flight direction filter
+			if strings.HasPrefix(request.Direction, "D") && currentFlight.IsArrival() {
+				currentFlight = currentFlight.NextNode
+				continue
+			}
+			if strings.HasPrefix(request.Direction, "A") && !currentFlight.IsArrival() {
+				currentFlight = currentFlight.NextNode
+				continue
+			}
+
+			// Requested Airline Code filter
+			if request.Airline != "" && currentFlight.GetIATAAirline() != request.Airline {
+				currentFlight = currentFlight.NextNode
+				continue
+			}
+
+			// RequestedRoute filter
+			if request.Route != "" && !strings.Contains(currentFlight.GetFlightRoute(), request.Route) {
+				currentFlight = currentFlight.NextNode
+				continue
+			}
+
+			if request.FltNum != "" && !strings.Contains(currentFlight.GetFlightID(), request.FltNum) {
+				currentFlight = currentFlight.NextNode
+				continue
+			}
+
+			if request.UpdatedSince != "" {
+				if currentFlight.LastUpdate.Before(updatedSinceTime) {
+					currentFlight = currentFlight.NextNode
+					continue
+				}
+			}
+
+			// Filter out airlines that the user is not allowed to see
+			// "*" entry in AllowedAirlines allows all.
+			if !allowedAllAirline {
+				if request.UserProfile.AllowedAirlines != nil {
+					if !globals.Contains(request.UserProfile.AllowedAirlines, currentFlight.GetIATAAirline()) {
+						currentFlight = currentFlight.NextNode
+						continue
+					}
+				}
+			}
 		}
 
-		if currentFlight.GetSTO().After(to) {
-			currentFlight = currentFlight.NextNode
-			continue
-		}
-
+		//Need to do Custom Field filtering even on GobStorage
 		for _, queryableParameter := range request.PresentQueryableParameters {
 			queryValue := queryableParameter.Value
 			flightValue := currentFlight.GetProperty(queryableParameter.Parameter)
@@ -354,51 +410,6 @@ NextFlight:
 			if flightValue == "" || queryValue != flightValue {
 				currentFlight = currentFlight.NextNode
 				continue NextFlight
-			}
-		}
-
-		// Flight direction filter
-		if strings.HasPrefix(request.Direction, "D") && currentFlight.IsArrival() {
-			currentFlight = currentFlight.NextNode
-			continue
-		}
-		if strings.HasPrefix(request.Direction, "A") && !currentFlight.IsArrival() {
-			currentFlight = currentFlight.NextNode
-			continue
-		}
-
-		// Requested Airline Code filter
-		if request.Airline != "" && currentFlight.GetIATAAirline() != request.Airline {
-			currentFlight = currentFlight.NextNode
-			continue
-		}
-
-		// RequestedRoute filter
-		if request.Route != "" && !strings.Contains(currentFlight.GetFlightRoute(), request.Route) {
-			currentFlight = currentFlight.NextNode
-			continue
-		}
-
-		if request.FltNum != "" && !strings.Contains(currentFlight.GetFlightID(), request.FltNum) {
-			currentFlight = currentFlight.NextNode
-			continue
-		}
-
-		if request.UpdatedSince != "" {
-			if currentFlight.LastUpdate.Before(updatedSinceTime) {
-				currentFlight = currentFlight.NextNode
-				continue
-			}
-		}
-
-		// Filter out airlines that the user is not allowed to see
-		// "*" entry in AllowedAirlines allows all.
-		if !allowedAllAirline {
-			if request.UserProfile.AllowedAirlines != nil {
-				if !globals.Contains(request.UserProfile.AllowedAirlines, currentFlight.GetIATAAirline()) {
-					currentFlight = currentFlight.NextNode
-					continue
-				}
 			}
 		}
 
@@ -418,9 +429,13 @@ NextFlight:
 	response.NumberOfFlights = len(response.ResponseFlights)
 
 	//defer globals.ExeTime(fmt.Sprintf("Sorting %v Filtered Flights", response.NumberOfFlights))()
-	sort.Slice(response.ResponseFlights, func(i, j int) bool {
-		return response.ResponseFlights[i].STO.Before(response.ResponseFlights[j].STO)
-	})
+
+	// Don't need to sort if using GOB coz they are sorted in the selection
+	if !globals.UseGobStorage {
+		sort.Slice(response.ResponseFlights, func(i, j int) bool {
+			return response.ResponseFlights[i].STO.Before(response.ResponseFlights[j].STO)
+		})
+	}
 
 	response.CustomFieldQuery = request.PresentQueryableParameters
 

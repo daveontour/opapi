@@ -133,6 +133,10 @@ func HandleFlightDelete(flt models.Flight) {
 func checkForImpactedSubscription(mess models.FlightUpdateChannelMessage, action string) {
 
 	flt := GetRepo(mess.AirportCode).GetFlight(mess.FlightID)
+	if flt == nil {
+		fmt.Println("Nil flight when looking for impacted subscriptions")
+		return
+	}
 	flt.Action = action
 	sto := flt.GetSTO()
 

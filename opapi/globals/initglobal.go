@@ -44,6 +44,9 @@ var FlightDeletedChannel = make(chan models.Flight)
 var FileDeleteChannel = make(chan string)
 var FlightsInitChannel = make(chan int)
 
+var UseGobStorage bool = false
+var ClearGobStorageOnStartUp bool = true
+
 var SchedulerMap = make(map[string]*gocron.Scheduler)
 var RefreshSchedulerMap = make(map[string]*gocron.Scheduler)
 
@@ -71,6 +74,9 @@ func InitGlobals() {
 	if err := ConfigViper.ReadInConfig(); err != nil {
 		Logger.Fatal("Could Not Read service.json config file")
 	}
+
+	UseGobStorage = ConfigViper.GetBool("UseGob")
+	ClearGobStorageOnStartUp = ConfigViper.GetBool("ClearGobOnStartUp")
 
 	AirportsViper.SetConfigName("airports")
 	AirportsViper.SetConfigType("json")

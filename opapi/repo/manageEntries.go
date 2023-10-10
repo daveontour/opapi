@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/daveontour/opapi/opapi/globals"
+	gobstorage "github.com/daveontour/opapi/opapi/gob"
 	"github.com/daveontour/opapi/opapi/models"
 )
 
@@ -47,17 +48,40 @@ func UpdateFlightEntry(message string, append bool, notify bool) {
 	flight.LastUpdate = time.Now()
 	flight.Action = globals.UpdateAction
 
-	globals.MapMutex.Lock()
-	if append {
-		repo.FlightLinkedList.AddNode(flight)
-		upadateAllocation(flight, airportCode, true)
+	// Allocation changes are expensive, so only do them if necessary
 
+	resourceChange := flight.FlightChanges.CheckinSlotsChange != nil ||
+		flight.FlightChanges.GateSlotsChange != nil ||
+		flight.FlightChanges.StandSlotsChange != nil ||
+		flight.FlightChanges.CarouselSlotsChange != nil ||
+		flight.FlightChanges.ChuteSlotsChange != nil ||
+		flight.FlightChanges.AircraftChange != nil ||
+		flight.FlightChanges.AircraftTypeChange != nil ||
+		flight.FlightChanges.RouteChange != nil
+
+	if globals.UseGobStorage {
+		gobstorage.StoreFlight(flight)
+		if resourceChange {
+			upadateAllocation(flight, airportCode, false)
+		}
 	} else {
-		repo.FlightLinkedList.ReplaceOrAddNode(flight)
-		upadateAllocation(flight, airportCode, false)
+		globals.MapMutex.Lock()
 
+		if append {
+			repo.FlightLinkedList.AddNode(flight)
+			if resourceChange {
+				upadateAllocation(flight, airportCode, true)
+			}
+
+		} else {
+			repo.FlightLinkedList.ReplaceOrAddNode(flight)
+			if resourceChange {
+				upadateAllocation(flight, airportCode, false)
+			}
+
+		}
+		globals.MapMutex.Unlock()
 	}
-	globals.MapMutex.Unlock()
 
 	if notify {
 		globals.FlightUpdatedChannel <- models.FlightUpdateChannelMessage{FlightID: flight.GetFlightID(), AirportCode: airportCode}
@@ -75,6 +99,7 @@ func createFlightEntry(message string, notify bool) {
 	}
 
 	flight := envel.Content.FlightCreatedNotification.Flight
+	gobstorage.StoreFlight(flight)
 	flight.LastUpdate = time.Now()
 	flight.Action = globals.CreateAction
 
@@ -91,7 +116,11 @@ func createFlightEntry(message string, notify bool) {
 		return
 	}
 
-	repo.FlightLinkedList.ReplaceOrAddNode(flight)
+	if globals.UseGobStorage {
+		gobstorage.StoreFlight(flight)
+	} else {
+		repo.FlightLinkedList.ReplaceOrAddNode(flight)
+	}
 	upadateAllocation(flight, airportCode, false)
 
 	if notify {
@@ -114,8 +143,12 @@ func deleteFlightEntry(message string, notify bool) {
 	repo := GetRepo(airportCode)
 
 	flightCopy := flight
-	repo.FlightLinkedList.RemoveNode(flight)
-	repo.RemoveFlightAllocation(flight.GetFlightID())
+	if globals.UseGobStorage {
+		gobstorage.DeleteFlight(flight)
+	} else {
+		repo.FlightLinkedList.RemoveNode(flight)
+		repo.RemoveFlightAllocation(flight.GetFlightID())
+	}
 
 	if notify {
 		globals.FlightDeletedChannel <- flightCopy
@@ -169,6 +202,9 @@ func upadateAllocation(flight models.Flight, airportCode string, bypassDelete bo
 	//defer exeTime(fmt.Sprintf("Updated allocations for Flight %s", flight.GetFlightID()))()
 	// Testing with 3000 flights showed unmeasurable time to 500 micro seconds, so no worries mate
 
+	if globals.UseGobStorage {
+		gobstorage.DeleteFlightResourceAllocation(flight, airportCode)
+	}
 	repo := GetRepo(airportCode)
 
 	// It's too messy to do CRUD operations, so just delete all the allocations and then create them again from the current message
@@ -185,9 +221,19 @@ func upadateAllocation(flight models.Flight, airportCode string, bypassDelete bo
 
 	for _, checkInSlot := range flight.FlightState.CheckInSlots.CheckInSlot {
 		checkInID, start, end := checkInSlot.GetResourceID()
+		resourceArea := "Area"
+		_, resourceArea, err := repo.GetResourceDetail("CHECKIN", checkInID)
+		if err != nil {
+			resourceArea = "Not Found"
+		}
+
+		if checkInID == "" {
+			checkInID = "-"
+		}
 
 		allocation := models.AllocationItem{
 			ResourceID:           checkInID,
+			ResourceArea:         resourceArea,
 			From:                 start,
 			To:                   end,
 			FlightID:             flightId,
@@ -198,15 +244,28 @@ func upadateAllocation(flight models.Flight, airportCode string, bypassDelete bo
 			AircraftRegistration: aircraftRegistration,
 			LastUpdate:           now}
 
-		(*repo).CheckInList.AddAllocation(allocation)
-
+		if globals.UseGobStorage {
+			gobstorage.StoreResourceAllocation(allocation, "CHECKIN", airportCode)
+		} else {
+			(*repo).CheckInList.AddAllocation(allocation)
+		}
 	}
 
 	for _, gateSlot := range flight.FlightState.GateSlots.GateSlot {
 		gateID, start, end := gateSlot.GetResourceID()
+		resourceArea := "Area"
+		_, resourceArea, err := repo.GetResourceDetail("GATE", gateID)
+		if err != nil {
+			resourceArea = "Not Found"
+		}
+
+		if gateID == "" {
+			gateID = "-"
+		}
 
 		allocation := models.AllocationItem{
 			ResourceID:           gateID,
+			ResourceArea:         resourceArea,
 			From:                 start,
 			To:                   end,
 			FlightID:             flightId,
@@ -217,14 +276,28 @@ func upadateAllocation(flight models.Flight, airportCode string, bypassDelete bo
 			AircraftRegistration: aircraftRegistration,
 			LastUpdate:           now}
 
-		(*repo).GateList.AddAllocation(allocation)
+		if globals.UseGobStorage {
+			gobstorage.StoreResourceAllocation(allocation, "GATE", airportCode)
+		} else {
+			(*repo).GateList.AddAllocation(allocation)
+		}
 	}
 
 	for _, standSlot := range flight.FlightState.StandSlots.StandSlot {
 		standID, start, end := standSlot.GetResourceID()
+		resourceArea := "Area"
+		_, resourceArea, err := repo.GetResourceDetail("STAND", standID)
+		if err != nil {
+			resourceArea = "Not Found"
+		}
+
+		if standID == "" {
+			standID = "-"
+		}
 
 		allocation := models.AllocationItem{
 			ResourceID:           standID,
+			ResourceArea:         resourceArea,
 			From:                 start,
 			To:                   end,
 			FlightID:             flightId,
@@ -235,14 +308,28 @@ func upadateAllocation(flight models.Flight, airportCode string, bypassDelete bo
 			AircraftRegistration: aircraftRegistration,
 			LastUpdate:           now}
 
-		(*repo).StandList.AddAllocation(allocation)
+		if globals.UseGobStorage {
+			gobstorage.StoreResourceAllocation(allocation, "STAND", airportCode)
+		} else {
+			(*repo).StandList.AddAllocation(allocation)
+		}
 	}
 
 	for _, carouselSlot := range flight.FlightState.CarouselSlots.CarouselSlot {
 		carouselID, start, end := carouselSlot.GetResourceID()
+		resourceArea := "Area"
+		_, resourceArea, err := repo.GetResourceDetail("CAROUSEL", carouselID)
+		if err != nil {
+			resourceArea = "Not Found"
+		}
+
+		if carouselID == "" {
+			carouselID = "-"
+		}
 
 		allocation := models.AllocationItem{
 			ResourceID:           carouselID,
+			ResourceArea:         resourceArea,
 			From:                 start,
 			To:                   end,
 			FlightID:             flightId,
@@ -253,15 +340,28 @@ func upadateAllocation(flight models.Flight, airportCode string, bypassDelete bo
 			AircraftRegistration: aircraftRegistration,
 			LastUpdate:           now}
 
-		(*repo).CarouselList.AddAllocation(allocation)
+		if globals.UseGobStorage {
+			gobstorage.StoreResourceAllocation(allocation, "CAROUSEL", airportCode)
+		} else {
+			(*repo).CarouselList.AddAllocation(allocation)
+		}
 
 	}
 
 	for _, chuteSlot := range flight.FlightState.ChuteSlots.ChuteSlot {
 		chuteID, start, end := chuteSlot.GetResourceID()
+		resourceArea := "Area"
+		_, resourceArea, err := repo.GetResourceDetail("CHUTE", chuteID)
+		if err != nil {
+			resourceArea = "Not Found"
+		}
 
+		if chuteID == "" {
+			chuteID = "-"
+		}
 		allocation := models.AllocationItem{
 			ResourceID:           chuteID,
+			ResourceArea:         resourceArea,
 			From:                 start,
 			To:                   end,
 			FlightID:             flightId,
@@ -272,6 +372,10 @@ func upadateAllocation(flight models.Flight, airportCode string, bypassDelete bo
 			AircraftRegistration: aircraftRegistration,
 			LastUpdate:           now}
 
-		(*repo).ChuteList.AddAllocation(allocation)
+		if globals.UseGobStorage {
+			gobstorage.StoreResourceAllocation(allocation, "CHUTE", airportCode)
+		} else {
+			(*repo).ChuteList.AddAllocation(allocation)
+		}
 	}
 }

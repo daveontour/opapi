@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/daveontour/opapi/opapi/globals"
+	gobstorage "github.com/daveontour/opapi/opapi/gob"
 	"github.com/daveontour/opapi/opapi/models"
 	"github.com/daveontour/opapi/opapi/timeservice"
 
@@ -71,7 +72,9 @@ func GetResourceAPI(c *gin.Context) {
 		sortBy = "resource"
 	}
 
-	response, error := getResourcesCommon(apt, flightID, airline, resourceType, resource, c.Query("from"), c.Query("to"), c.Query("updatedSince"), sortBy, "", c)
+	updatedSince := c.Query("updatedSince")
+
+	response, error := getResourcesCommon(apt, flightID, airline, resourceType, resource, c.Query("from"), c.Query("to"), updatedSince, sortBy, "", c)
 
 	fileName, err := writeResourceResponseToFile(response, userProfile)
 
@@ -204,103 +207,110 @@ func getResourcesCommon(apt, flightID, airline, resourceType, resource, from, to
 	globals.MapMutex.Lock()
 	defer globals.MapMutex.Unlock()
 
-	repo := GetRepo(apt)
-	allocMaps := []models.ResourceLinkedList{
-		repo.CheckInList,
-		repo.GateList,
-		repo.StandList,
-		repo.ChuteList,
-		repo.CarouselList}
+	if globals.UseGobStorage {
+		// GetResourceAllocation(apt string, resource string, airline string, flightID string, direction string, route string, fromTime time.Time, toTime time.Time, updatedSince string, resourceType string) (alloc []models.AllocationResponseItem) {
 
-	//	filterStart := time.Now()
-	for idx, allocMap := range allocMaps {
+		alloc = gobstorage.GetResourceAllocation(apt, resource, airline, flightID, "Arrival", "MEL", fromTime, toTime, updatedSince, resourceType)
+	} else {
+		repo := GetRepo(apt)
+		allocMaps := []models.ResourceLinkedList{
+			repo.CheckInList,
+			repo.GateList,
+			repo.StandList,
+			repo.ChuteList,
+			repo.CarouselList}
 
-		//If a resource type has been specified, ignore the rest
-		if resourceType != "" {
-			if (strings.ToLower(resourceType) == "checkin" || strings.ToLower(resourceType) == "checkins") && idx != 0 {
-				continue
-			}
-			if (strings.ToLower(resourceType) == "gate" || strings.ToLower(resourceType) == "gates") && idx != 1 {
-				continue
-			}
-			if (strings.ToLower(resourceType) == "stand" || strings.ToLower(resourceType) == "stands") && idx != 2 {
-				continue
-			}
-			if (strings.ToLower(resourceType) == "chute" || strings.ToLower(resourceType) == "chutes") && idx != 3 {
-				continue
-			}
-			if (strings.ToLower(resourceType) == "carousel" || strings.ToLower(resourceType) == "carousels") && idx != 4 {
-				continue
-			}
-		}
+		//	filterStart := time.Now()
+		for idx, allocMap := range allocMaps {
 
-		r := allocMap.Head
-		for r != nil {
-
-			//If a specific resource has been requested, ignore the rest
-			if resource != "" && r.Resource.Name != resource {
-				r = r.NextNode
-				continue
-			}
-
-			list := r.FlightAllocationsList
-
-			v := list.Head
-
-			for v != nil {
-
-				test := false
-
-				if airline != "" && strings.HasPrefix(v.FlightID, airline) {
-					test = true
+			//If a resource type has been specified, ignore the rest
+			if resourceType != "" {
+				if (strings.ToLower(resourceType) == "checkin" || strings.ToLower(resourceType) == "checkins") && idx != 0 {
+					continue
 				}
-				if flightID != "" && strings.Contains(v.FlightID, flightID) {
-					test = true
+				if (strings.ToLower(resourceType) == "gate" || strings.ToLower(resourceType) == "gates") && idx != 1 {
+					continue
 				}
-
-				if airline == "" && flightID == "" {
-					test = true
+				if (strings.ToLower(resourceType) == "stand" || strings.ToLower(resourceType) == "stands") && idx != 2 {
+					continue
 				}
+				if (strings.ToLower(resourceType) == "chute" || strings.ToLower(resourceType) == "chutes") && idx != 3 {
+					continue
+				}
+				if (strings.ToLower(resourceType) == "carousel" || strings.ToLower(resourceType) == "carousels") && idx != 4 {
+					continue
+				}
+			}
 
-				if !test {
-					v = v.NextNode
+			r := allocMap.Head
+			for r != nil {
+
+				//If a specific resource has been requested, ignore the rest
+				if resource != "" && r.Resource.Name != resource {
+					r = r.NextNode
 					continue
 				}
 
-				if v.To.Before(fromTime) {
-					v = v.NextNode
-					continue
-				}
+				list := r.FlightAllocationsList
 
-				if v.From.After(toTime) {
-					v = v.NextNode
-					continue
-				}
+				v := list.Head
 
-				if updatedSinceErr == nil {
-					if v.LastUpdate.Before(updatedSinceTime) {
+				for v != nil {
+
+					test := false
+
+					if airline != "" && strings.HasPrefix(v.FlightID, airline) {
+						test = true
+					}
+					if flightID != "" && strings.Contains(v.FlightID, flightID) {
+						test = true
+					}
+
+					if airline == "" && flightID == "" {
+						test = true
+					}
+
+					if !test {
 						v = v.NextNode
 						continue
 					}
-				}
 
-				n := models.AllocationResponseItem{
-					AllocationItem: models.AllocationItem{From: v.From,
-						To:                   v.To,
-						FlightID:             v.FlightID,
-						Direction:            v.Direction,
-						Route:                v.Route,
-						AircraftType:         v.AircraftType,
-						AircraftRegistration: v.AircraftRegistration,
-						LastUpdate:           v.LastUpdate},
-					ResourceType: r.Resource.ResourceTypeCode,
-					Name:         r.Resource.Name,
-					Area:         r.Resource.Area,
+					if v.To.Before(fromTime) {
+						v = v.NextNode
+						continue
+					}
+
+					if v.From.After(toTime) {
+						v = v.NextNode
+						continue
+					}
+
+					if updatedSinceErr == nil {
+						if v.LastUpdate.Before(updatedSinceTime) {
+							v = v.NextNode
+							continue
+						}
+					}
+
+					n := models.AllocationResponseItem{
+						AllocationItem: models.AllocationItem{
+							From:                 v.From,
+							To:                   v.To,
+							FlightID:             v.FlightID,
+							Direction:            v.Direction,
+							Route:                v.Route,
+							AircraftType:         v.AircraftType,
+							AircraftRegistration: v.AircraftRegistration,
+							LastUpdate:           v.LastUpdate},
+						ResourceType: r.Resource.ResourceTypeCode,
+						Name:         r.Resource.Name,
+						Area:         r.Resource.Area,
+					}
+					alloc = append(alloc, n)
+					v = v.NextNode
 				}
-				alloc = append(alloc, n)
-				v = v.NextNode
+				r = r.NextNode
 			}
-			r = r.NextNode
 		}
 	}
 

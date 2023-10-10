@@ -2,8 +2,11 @@ package models
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"time"
+
+	"github.com/daveontour/opapi/opapi/timeservice"
 )
 
 type Request struct {
@@ -11,7 +14,9 @@ type Request struct {
 	Airline                    string
 	FltNum                     string
 	From                       string
+	FromUnix                   int64
 	To                         string
+	ToUnix                     int64
 	UpdatedSince               string
 	Route                      string
 	UserProfile                UserProfile
@@ -111,6 +116,7 @@ type AllocationItem struct {
 	PrevNode             *AllocationItem `xml:"-" json:"-"`
 	NextNode             *AllocationItem `xml:"-" json:"-"`
 	ResourceID           string
+	ResourceArea         string
 	From                 time.Time
 	To                   time.Time
 	FlightID             string
@@ -303,6 +309,41 @@ type GetFlightsError struct {
 	Err        error
 }
 
+func (r *Repository) GetResourceDetail(resourceType, id string) (string, string, error) {
+
+	if resourceType == "" || id == "" {
+		return "-", "-", nil
+	}
+	var l *ResourceLinkedList
+
+	if resourceType == "CHECKIN" {
+		l = &r.CheckInList
+	}
+	if resourceType == "GATE" {
+		l = &r.GateList
+	}
+	if resourceType == "STAND" {
+		l = &r.StandList
+	}
+	if resourceType == "CAROUSEL" {
+		l = &r.CarouselList
+	}
+	if resourceType == "CHUTE" {
+		l = &r.ChuteList
+	}
+
+	res := l.Head
+
+	for res != nil {
+		if res.Resource.Name == id {
+			return res.Resource.Name, res.Resource.Area, nil
+		}
+		res = res.NextNode
+	}
+
+	return "", "", errors.New("Resource Not Found")
+}
+
 func (r *Response) AddWarning(w string) {
 	r.Warnings = append(r.Warnings, w)
 }
@@ -447,8 +488,9 @@ func (d AllocationResponseItem) WriteJSON(fwb *bufio.Writer) error {
 		"\"ResourceType\":\"" + d.ResourceType + "\"," +
 		"\"Name\":\"" + d.Name + "\"," +
 		"\"Area\":\"" + d.Area + "\"," +
-		fmt.Sprintf("\"AllocationStart\":\"%s\",", d.AllocationItem.From) +
-		fmt.Sprintf("\"AllocationEnd\":\"%s\",", d.AllocationItem.To) +
+		fmt.Sprintf("\"AllocationStart\":\"%s\",", d.AllocationItem.From.Format(timeservice.Layout)) +
+		fmt.Sprintf("\"AllocationEnd\":\"%s\",", d.AllocationItem.To.Format(timeservice.Layout)) +
+		fmt.Sprintf("\"LastUpdate\":\"%s\",", d.LastUpdate.Format(timeservice.Layout)) +
 		"\"Flight\": {" +
 		"\"FlightID\":\"" + d.AllocationItem.FlightID + "\"," +
 		"\"Direction\":\"" + d.AllocationItem.Direction + "\"," +

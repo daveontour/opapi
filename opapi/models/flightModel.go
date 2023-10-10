@@ -1484,6 +1484,19 @@ type Flight struct {
 	LastUpdate    time.Time     `xml:"LastUpdate" json:"LastUpdate"`
 }
 
+func (d *Flight) GetGobParameters() (id, airport, airline, fltnum, kind, route, sto string, stoUnix int) {
+
+	id = d.GetFlightID()
+	kind = d.GetFlightDirection()
+	airline = d.GetIATAAirline()
+	route = d.GetFlightRoute()
+	sto = d.GetSTO().String()
+	stoUnix = int(d.GetSTO().Unix())
+	fltnum = d.FlightId.FlightNumber
+	airport = d.GetIATAAirport()
+	return
+}
+
 func (d *Flight) WriteJSON(fwb *bufio.Writer, userProfile *UserProfile, statusOnly bool) error {
 
 	_, err := fwb.WriteString("{")

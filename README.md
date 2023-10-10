@@ -190,7 +190,7 @@ Retreive flight details
 |**r or route**|The route of the flight|/getFlights/APT?r=MEL|
 |**from**|Number of hours relative to 'now' for the earliest scheduled time of operation for the flight, eg. -3 (default: -12|/getFlights/APT?from=-12|
 |**to**|Number of hours relative to 'now' for the latest scheduled time of operation for the flight, eg. 12 (default: 24)|/getFlights/APT?to=48|
-|**updatedSince**|Return records that have been updated from the date, e.g. 2023-07-16T13:00:00|/getFlights/APT?upatedSince=2023-07-16T13:00:0|
+|**updatedSince**|Return records that have been updated from the date, e.g. 2023-07-16T13:00:00|/getFlights/APT?updatedSince=2023-07-16T13:00:0|
 |**{custom field name}**|Return records have the specified custom field name equal to the specified value. Users will only be able to search on the custom fields they have been granted access to. (see below)|/getFlights/APT?Sh--_GroundHandler=EAS|
 |**max**|Limit the total number of flights returned to the number specified|/getFlights/APT?max=5|
 

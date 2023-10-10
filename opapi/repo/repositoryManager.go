@@ -26,6 +26,7 @@ import (
 	"github.com/jandauz/go-msmq"
 
 	"github.com/daveontour/opapi/opapi/globals"
+	gobstorage "github.com/daveontour/opapi/opapi/gob"
 	"github.com/daveontour/opapi/opapi/models"
 	"github.com/daveontour/opapi/opapi/timeservice"
 
@@ -449,6 +450,7 @@ func updateRepository(airportCode string) {
 			//	globals.MapMutex.Lock()
 			(*repo).FlightLinkedList.ReplaceOrAddNode(flight)
 			upadateAllocation(flight, airportCode, false)
+			gobstorage.StoreFlight(flight)
 			//	globals.MapMutex.Unlock()
 		}
 
@@ -520,19 +522,40 @@ func IncrementalUpdateRepository(airportCode string) {
 	repo.UpdateLowerLimit(time.Date(from.Year(), from.Month(), from.Day(), 0, 0, 0, 0, from.Location()))
 	repo.UpdateUpperLimit(time.Date(to.Year(), to.Month(), to.Day(), 0, 0, 0, 0, to.Location()))
 
-	removed := cleanRepository(from, airportCode)
-	postLength := repo.FlightLinkedList.Len()
-	postEarliest, postLatest := repo.FlightLinkedList.Extremes()
-	postLowerLimit := repo.CurrentLowerLimit
-	postUpperLimit := repo.CurrentUpperLimit
+	if globals.UseGobStorage {
+		removed, postLength, maxSto, minSto := gobstorage.CleanRepository(airportCode, from)
 
-	logentry := fmt.Sprintf("\nScheduled Maintenance of Repository: %s at %s", airportCode, time.Now())
-	logentry += fmt.Sprintf("\nPre Maintenance:\n  Length: %v\n  Earliest STO: %s\n  Latestet STO: %s\n  Lower Limit:  %s\n  Upper Limit:  %s\n ", preLength, preEarliest, preLatest, preLowerLimit, preUpperLimit)
-	logentry += fmt.Sprintf("\nPost Maintenance:\n  Length: %v\n  Earliest STO: %s\n  Latestet STO: %s\n  Lower Limit:  %s\n  Upper Limit:  %s\n ", postLength, postEarliest, postLatest, postLowerLimit, postUpperLimit)
-	logentry += fmt.Sprintf("\nNumber of flights Pruned: %v", removed)
+		// postEarliest, postLatest := repo.FlightLinkedList.Extremes()
+		// postLowerLimit := repo.CurrentLowerLimit
+		// postUpperLimit := repo.CurrentUpperLimit
 
-	globals.Logger.Info(logentry)
-	fmt.Println(logentry)
+		tmax := time.Unix(int64(maxSto), 0)
+		tmin := time.Unix(int64(minSto), 0)
+
+		logentry := fmt.Sprintf("\nScheduled Maintenance of Repository: %s at %s", airportCode, time.Now())
+		// logentry += fmt.Sprintf("\nPre Maintenance:\n  Length: %v\n  Earliest STO: %s\n  Latestet STO: %s\n  Lower Limit:  %s\n  Upper Limit:  %s\n ", preLength, preEarliest, preLatest, preLowerLimit, preUpperLimit)
+		//logentry += fmt.Sprintf("\nPost Maintenance:\n  Length: %v\n  Earliest STO: %s\n  Latestet STO: %s\n  Lower Limit:  %s\n  Upper Limit:  %s\n ", postLength, postEarliest, postLatest, postLowerLimit, postUpperLimit)
+		logentry += fmt.Sprintf("\nPost Maintenance:\n  Length: %v\n  Latestet STO: %v\n  Earliest STO: %v\n", postLength, tmax, tmin)
+		logentry += fmt.Sprintf("  Number of flights Pruned: %v\n", removed)
+
+		globals.Logger.Info(logentry)
+		fmt.Println(logentry)
+	} else {
+
+		removed := cleanRepository(from, airportCode)
+		postLength := repo.FlightLinkedList.Len()
+		postEarliest, postLatest := repo.FlightLinkedList.Extremes()
+		postLowerLimit := repo.CurrentLowerLimit
+		postUpperLimit := repo.CurrentUpperLimit
+
+		logentry := fmt.Sprintf("\nScheduled Maintenance of Repository: %s at %s", airportCode, time.Now())
+		logentry += fmt.Sprintf("\nPre Maintenance:\n  Length: %v\n  Earliest STO: %s\n  Latestet STO: %s\n  Lower Limit:  %s\n  Upper Limit:  %s\n ", preLength, preEarliest, preLatest, preLowerLimit, preUpperLimit)
+		logentry += fmt.Sprintf("\nPost Maintenance:\n  Length: %v\n  Earliest STO: %s\n  Latestet STO: %s\n  Lower Limit:  %s\n  Upper Limit:  %s\n ", postLength, postEarliest, postLatest, postLowerLimit, postUpperLimit)
+		logentry += fmt.Sprintf("\nNumber of flights Pruned: %v", removed)
+
+		globals.Logger.Info(logentry)
+		fmt.Println(logentry)
+	}
 	runtime.GC()
 }
 func cleanRepository(from time.Time, airportCode string) (count int) {
