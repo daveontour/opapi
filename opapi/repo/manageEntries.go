@@ -154,6 +154,12 @@ func deleteFlightEntry(message string, notify bool) {
 		globals.FlightDeletedChannel <- flightCopy
 	}
 }
+func unhandledNotificationMessage(message string, notify bool) {
+
+	if notify {
+		globals.UnhandledNotificationChannel <- message
+	}
+}
 func getFlights(airportCode string, values ...int) []byte {
 
 	repo := GetRepo(airportCode)
@@ -210,7 +216,7 @@ func upadateAllocation(flight models.Flight, airportCode string, bypassDelete bo
 	// It's too messy to do CRUD operations, so just delete all the allocations and then create them again from the current message
 	//bypass delete is used for init population for perfTest or demo mode
 	if !bypassDelete {
-		(*repo).RemoveFlightAllocation(flight.GetFlightID())
+		repo.RemoveFlightAllocation(flight.GetFlightID())
 	}
 	flightId := flight.GetFlightID()
 	direction := flight.GetFlightDirection()

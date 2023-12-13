@@ -14,7 +14,8 @@
             ],
             "AllowedCustomFields": [
                 "FlightUniqueID",
-                "SYS_ETA"
+                "SYS_ETA",
+                "*"
             ],
             "UserChangeSubscriptions": [
                 {

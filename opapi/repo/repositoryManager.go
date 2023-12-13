@@ -274,14 +274,16 @@ func MaintainRepository(airportCode string, perfTest bool) {
 					go UpdateFlightEntry(message, false, true)
 					queue.Close()
 					continue ReconnectMSMQ
-				}
-				if strings.Contains(message, "FlightCreatedNotification") {
+				} else if strings.Contains(message, "FlightCreatedNotification") {
 					go createFlightEntry(message, true)
 					queue.Close()
 					continue ReconnectMSMQ
-				}
-				if strings.Contains(message, "FlightDeletedNotification") {
+				} else if strings.Contains(message, "FlightDeletedNotification") {
 					go deleteFlightEntry(message, true)
+					queue.Close()
+					continue ReconnectMSMQ
+				} else {
+					go unhandledNotificationMessage(message, true)
 					queue.Close()
 					continue ReconnectMSMQ
 				}
@@ -448,7 +450,7 @@ func updateRepository(airportCode string) {
 			flight.LastUpdate = time.Now()
 			flight.Action = globals.StatusAction
 			//	globals.MapMutex.Lock()
-			(*repo).FlightLinkedList.ReplaceOrAddNode(flight)
+			repo.FlightLinkedList.ReplaceOrAddNode(flight)
 			upadateAllocation(flight, airportCode, false)
 			gobstorage.StoreFlight(flight)
 			//	globals.MapMutex.Unlock()
@@ -565,7 +567,7 @@ func cleanRepository(from time.Time, airportCode string) (count int) {
 	// defer globals.MapMutex.Unlock()
 
 	globals.Logger.Info(fmt.Sprintf("Cleaning repository from: %s", from))
-	count = GetRepo(airportCode).FlightLinkedList.RemoveExpiredNodes(from)
+	count = GetRepo(airportCode).FlightLinkedList.RemoveExpiredNodes(from, GetRepo(airportCode))
 	return
 }
 

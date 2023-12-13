@@ -284,7 +284,8 @@ An example of the contents of the service.json file is shown below
     "MetricsLogFile": "c:/Users/dave_/Desktop/Logs/performance.log",
     "AdminToken": "davewashere",
     "NumberOfChangePushWorkers":7,
-    "NumberOfSchedulePushWorkers":5
+    "NumberOfSchedulePushWorkers":5,
+    "UseGob":true
 }
 ~~~
 
@@ -313,6 +314,7 @@ An example of the contents of the service.json file is shown below
 |AdminToken|The header token to identify the user with administrator capability ||
 |NumberOfChangePushWorkers|The number of worker Go processes for managing change notifications||
 |NumberOfSchedulePushWorkers|The number of worker Go processes for managing distribution of subscription updates|Maximum value should not exceed the total number of subscriptions|
+|UseGob|Under normal operation, the service will cache information in memory. This can result in significant memory usage if there is a large number of flights or allocation. If UseGob is set to "true", the service will use a file based caching mechanism which means the service memory usage will not vary according to the number of flights. API response times may be impacted and the return time may be in the hundreds of milliseconds rather than the tens of milliseconds for memory based caching||
 
 ## Service Memory Usage
 

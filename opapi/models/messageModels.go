@@ -787,7 +787,14 @@ func (ll *FlightLinkedList) GetFlight(flightID string) *Flight {
 }
 
 func (rep *Repository) GetFlight(flightID string) *Flight {
+
+	//	if globals.UseGobStorage {
 	return rep.FlightLinkedList.GetFlight(flightID)
+	// } else {
+	// 	gobstorage.GetFlight(flightID, rep.AMSAirport)
+	// }
+
+	//return nil
 }
 
 func (ll *FlightLinkedList) Len() int {
@@ -871,13 +878,16 @@ func (ll *FlightLinkedList) ReplaceOrAddNode(node Flight) {
 
 	ll.AddNode(node)
 }
-func (ll *FlightLinkedList) RemoveExpiredNodes(from time.Time) (count int) {
+func (ll *FlightLinkedList) RemoveExpiredNodes(from time.Time, repo *Repository) (count int) {
 	currentNode := ll.Head
 
 	for currentNode != nil {
 		if currentNode.GetSDO().Before(from) {
 
 			count++
+
+			// Remove allocations associated with the flight
+			repo.RemoveFlightAllocation(currentNode.GetFlightID())
 
 			if currentNode.PrevNode != nil {
 				currentNode.PrevNode.NextNode = currentNode.NextNode

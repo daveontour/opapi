@@ -1,11 +1,13 @@
 package globals
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
 
 	"github.com/daveontour/opapi/opapi/models"
+	ipc "github.com/james-barrow/golang-ipc"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/go-co-op/gocron"
@@ -41,6 +43,7 @@ var RepositoryUpdateChannel = make(chan int)
 var FlightUpdatedChannel = make(chan models.FlightUpdateChannelMessage)
 var FlightCreatedChannel = make(chan models.FlightUpdateChannelMessage)
 var FlightDeletedChannel = make(chan models.Flight)
+var UnhandledNotificationChannel = make(chan string)
 var FileDeleteChannel = make(chan string)
 var FlightsInitChannel = make(chan int)
 
@@ -52,6 +55,8 @@ var RefreshSchedulerMap = make(map[string]*gocron.Scheduler)
 
 var UserChangeSubscriptions []models.UserChangeSubscription
 var UserChangeSubscriptionsMutex = &sync.RWMutex{}
+
+var IPCServerHandle *ipc.Server
 
 var DemoMode = false
 
@@ -123,6 +128,8 @@ func InitGlobals() {
 		Logger.SetLevel(logrus.TraceLevel)
 	}
 
+	go ipcServerStart()
+
 }
 
 func initLogging() {
@@ -165,4 +172,36 @@ func initLogging() {
 	// 		Compress:   true, // disabled by default
 	// 	})
 	// }
+}
+
+func ipcServerStart() {
+
+	var err error
+
+	IPCServerHandle, err = ipc.StartServer("opapiipcpipe", nil)
+	if err != nil {
+		fmt.Println("IPC Server Pipeline Error", err)
+		return
+	}
+
+	fmt.Println("IPC Server status", IPCServerHandle.Status())
+
+	for {
+
+		message, err := IPCServerHandle.Read()
+
+		if err == nil {
+
+			if message.MsgType == -1 {
+				fmt.Println("Serrer status", IPCServerHandle.Status())
+			} else {
+
+				fmt.Println("Server received: "+string(message.Data)+" - Message type: ", message.MsgType)
+				// s.Close()
+				// return
+			}
+
+		}
+	}
+
 }

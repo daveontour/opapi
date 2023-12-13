@@ -156,6 +156,9 @@ func eventMonitor() {
 
 		case fileDelete := <-globals.FileDeleteChannel:
 			go deleteFile(fileDelete)
+
+		case unhandledMessage := <-globals.UnhandledNotificationChannel:
+			go repo.ReportUnhandledMessage(unhandledMessage)
 		}
 	}
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/go-co-op/gocron"
 
 	"github.com/daveontour/opapi/opapi/globals"
+	gobstorage "github.com/daveontour/opapi/opapi/gob"
 	"github.com/daveontour/opapi/opapi/models"
 	"github.com/daveontour/opapi/opapi/timeservice"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -117,22 +118,35 @@ func SchedulePushes(airportCode string, demoMode bool) {
 
 func HandleFlightUpdate(mess models.FlightUpdateChannelMessage) {
 	checkForImpactedSubscription(mess, "UPDATE")
+	globals.IPCServerHandle.Write(11, []byte(mess.FlightID))
 }
 
 func HandleFlightCreate(mess models.FlightUpdateChannelMessage) {
 	checkForImpactedSubscription(mess, "CREATE")
+	globals.IPCServerHandle.Write(12, []byte(mess.FlightID))
 }
 
 func HandleFlightDelete(flt models.Flight) {
 	flt.Action = "DELETE"
 	checkForImpactedDeleteSubscription(flt)
+	globals.IPCServerHandle.Write(13, []byte(flt.GetFlightID()))
 	publishAllUpdatesToRabbit(flt)
+}
+
+func ReportUnhandledMessage(message string) {
+	globals.IPCServerHandle.Write(10, []byte("Unhandled Message"))
 }
 
 // Check if any of the registered change subscriptions are interested in this change
 func checkForImpactedSubscription(mess models.FlightUpdateChannelMessage, action string) {
 
-	flt := GetRepo(mess.AirportCode).GetFlight(mess.FlightID)
+	var flt *models.Flight
+	if globals.UseGobStorage {
+		flt = gobstorage.GetFlight(mess.FlightID, mess.AirportCode)
+	} else {
+		flt = GetRepo(mess.AirportCode).GetFlight(mess.FlightID)
+	}
+
 	if flt == nil {
 		fmt.Println("Nil flight when looking for impacted subscriptions")
 		return
@@ -628,8 +642,6 @@ func publishAllUpdatesToRabbit(flt models.Flight) {
 		err := os.Remove(file.Name())
 		if err != nil {
 			fmt.Println(err.Error())
-		} else {
-			fmt.Println("Temp file deleted for Rabbit Change PUSH Send")
 		}
 	}()
 

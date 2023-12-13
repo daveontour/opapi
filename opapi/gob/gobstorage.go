@@ -8,6 +8,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/daveontour/opapi/opapi/models"
@@ -18,6 +19,7 @@ import (
 var enc *gob.Encoder
 var dec *gob.Decoder
 var db *sql.DB
+var mu sync.Mutex
 
 const cacheFile string = "flightcache.db"
 
@@ -37,14 +39,6 @@ func GobStorageInit() {
 func GobStorageFlightInit() {
 
 	gob.Register(models.Flight{})
-
-	// db, err := sql.Open("sqlite3", cacheFile)
-
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// defer db.Close()
 
 	var version string
 	err := db.QueryRow("SELECT SQLITE_VERSION()").Scan(&version)
@@ -82,21 +76,14 @@ func GobStorageResourceInit() {
 
 func StoreResourceAllocation(aI models.AllocationItem, resourceType, apt string) {
 
-	// db, err := sql.Open("sqlite3", cacheFile)
-
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// defer db.Close()
+	mu.Lock()
+	defer mu.Unlock()
 
 	stm, err := db.Prepare("INSERT INTO resourcegob (airport, allocfrom, allocTo, flightID, direction, route, acType, acRego, lastUpdate, resourceType, name, area) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")
-
+	defer stm.Close()
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	defer stm.Close()
 
 	_, err = stm.Exec(apt, aI.From.Unix(), aI.To.Unix(), aI.FlightID, aI.Direction, aI.Route, aI.AircraftType, aI.AircraftRegistration, time.Now().Unix(), resourceType, aI.ResourceID, aI.ResourceArea)
 
@@ -106,22 +93,17 @@ func StoreResourceAllocation(aI models.AllocationItem, resourceType, apt string)
 }
 
 func DeleteFlightResourceAllocation(flt models.Flight, airportCode string) {
+
+	mu.Lock()
+	defer mu.Unlock()
+
 	id, _, _, _, _, _, _, _ := flt.GetGobParameters()
 
-	// db, err := sql.Open("sqlite3", cacheFile)
-
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// defer db.Close()
-
 	stm1, err := db.Prepare("DELETE FROM resourcegob WHERE flightId = ? AND airport = ?")
+	defer stm1.Close()
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	defer stm1.Close()
 
 	_, err = stm1.Exec(id, airportCode)
 	if err != nil {
@@ -131,34 +113,28 @@ func DeleteFlightResourceAllocation(flt models.Flight, airportCode string) {
 
 func StoreFlight(flt models.Flight) {
 
+	mu.Lock()
+	defer mu.Unlock()
+
 	id, airport, airline, fltnum, kind, route, _, stoUnix := flt.GetGobParameters()
 
-	// db, err := sql.Open("sqlite3", cacheFile)
-
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	//defer db.Close()
-
 	stm0, err := db.Prepare("DELETE FROM flightgob WHERE id = ?")
+	defer stm0.Close()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	defer stm0.Close()
 	_, err = stm0.Exec(id)
 	if err != nil {
 		fmt.Printf(err.Error())
 	}
+	stm0.Close()
 
 	stm, err := db.Prepare("INSERT INTO flightgob (id, airport, airline, fltnum, kind, route, sto, lastUpdate, gob) VALUES (?,?,?,?,?,?,?,?,?)")
-
+	defer stm.Close()
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	defer stm.Close()
 
 	var bBuf bytes.Buffer // Standard input
 	// We must register the concrete type for the encoder and decoder (which would
@@ -177,31 +153,25 @@ func StoreFlight(flt models.Flight) {
 }
 
 func DeleteFlight(flt models.Flight) {
+	mu.Lock()
+	defer mu.Unlock()
 
 	id, _, _, _, _, _, _, _ := flt.GetGobParameters()
 
-	// db, err := sql.Open("sqlite3", cacheFile)
-
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// defer db.Close()
-
 	stm1, err0 := db.Prepare("DELETE FROM resourcegob WHERE flightId = ?")
-
 	defer stm1.Close()
+
 	_, err := stm1.Exec(id)
 	if err != nil {
 		fmt.Printf(err.Error())
 	}
+	stm1.Close()
 
 	stm0, err0 := db.Prepare("DELETE FROM flightgob WHERE id = ?")
+	defer stm0.Close()
 	if err0 != nil {
 		log.Fatal(err)
 	}
-
-	defer stm0.Close()
 	_, err = stm0.Exec(id)
 	if err != nil {
 		fmt.Printf(err.Error())
@@ -209,17 +179,51 @@ func DeleteFlight(flt models.Flight) {
 
 }
 
+func GetFlight(flightID, apt string) (fltptr *models.Flight) {
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	sql := "SELECT id, gob FROM flightgob WHERE airport = ? and id = ?"
+	stm, err := db.Prepare(sql)
+	defer stm.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+	rows, err := stm.Query(apt, flightID)
+	stm.Close()
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var data []byte
+	var flt models.Flight
+
+	for rows.Next() {
+		err := rows.Scan(&flightID, &data)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		reader := bytes.NewReader(data)
+		dec := gob.NewDecoder(reader)
+
+		err = dec.Decode(&flt)
+		if err != nil {
+			log.Fatal("decode:", err)
+		}
+
+		fltptr = &flt
+	}
+
+	return
+}
+
 func GetFlights(request models.Request, allowedAllAirline bool, to, from time.Time, airport string) (FlightLinkedList models.FlightLinkedList) {
 
-	// db, err := sql.Open("sqlite3", cacheFile)
-
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// defer db.Close()
-
-	//	sql := "SELECT id, gob FROM flightgob WHERE airline = ? AND kind = ? AND fltnum LIKE ?  AND route LIKE ?"
+	mu.Lock()
+	defer mu.Unlock()
 
 	al := request.Airline
 
@@ -256,13 +260,12 @@ func GetFlights(request models.Request, allowedAllAirline bool, to, from time.Ti
 
 	sql := "SELECT id, gob FROM flightgob WHERE airport = ? AND airline LIKE ? AND id LIKE ? AND kind LIKE ? AND route LIKE ? AND sto >= ? AND sto <= ? AND lastUpdate > ? ORDER BY sto ASC"
 	stm, err := db.Prepare(sql)
-
+	defer stm.Close()
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	defer stm.Close()
 	rows, err := stm.Query(airport, al, fltNum, kind, route, strconv.FormatInt(from.Unix(), 10), strconv.FormatInt(to.Unix(), 10), updatedSince)
+	stm.Close()
 
 	if err != nil {
 		log.Fatal(err)
@@ -285,7 +288,6 @@ func GetFlights(request models.Request, allowedAllAirline bool, to, from time.Ti
 			log.Fatal("decode:", err)
 			log.Println(flightID)
 		} else {
-			fmt.Println(flt.FlightId)
 			FlightLinkedList.AddNode(flt)
 		}
 	}
@@ -295,26 +297,19 @@ func GetFlights(request models.Request, allowedAllAirline bool, to, from time.Ti
 
 func CleanRepository(apt string, from time.Time) (removed int64, postCount int, maxSto int, minSto int) {
 
-	// db, err := sql.Open("sqlite3", cacheFile)
-
-	// if err != nil {
-	// 	log.Fatal(err)
-	// 	return
-	// }
-
-	// defer db.Close()
+	mu.Lock()
+	defer mu.Unlock()
 
 	sql := "DELETE FROM flightgob WHERE airport = ?  AND sto <= ? "
 	stm, err := db.Prepare(sql)
-
+	defer stm.Close()
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
-
-	defer stm.Close()
 	res, err := stm.Exec(apt, strconv.FormatInt(from.Unix(), 10))
 	removed, _ = res.RowsAffected()
+	stm.Close()
 
 	if err != nil {
 		log.Fatal(err)
@@ -387,6 +382,7 @@ func GetResourceAllocation(apt string, resource string, airline string, flightID
 	if err != nil {
 		log.Fatal(err)
 	}
+	stm.Close()
 
 	var acType string
 	var acRego string
